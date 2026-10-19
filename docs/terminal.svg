@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="520" viewBox="0 0 1000 520" role="img" aria-labelledby="title desc">
+  <title id="title">gitHelp</title>
+  <desc id="desc">gitHelp explains Git in English or Turkish, lets you choose a branch, previews the command, and asks for approval.</desc>
+  <rect width="1000" height="520" rx="20" fill="#101820"/>
+  <path d="M20 0h960a20 20 0 0 1 20 20v32H0V20A20 20 0 0 1 20 0" fill="#1b2834"/>
+  <circle cx="26" cy="26" r="6" fill="#ec6a5e"/>
+  <circle cx="48" cy="26" r="6" fill="#f4bf50"/>
+  <circle cx="70" cy="26" r="6" fill="#61c554"/>
+  <text x="500" y="32" text-anchor="middle" fill="#a7b7c6" font-family="monospace" font-size="14">terminal / my-project</text>
+  <g font-family="monospace" font-size="18">
+    <text x="48" y="108" fill="#74e6c1">$ githelp --lang en</text>
+    <text x="48" y="160" fill="#f3f6fa" font-size="36" font-weight="bold">gitHelp</text>
+    <text x="48" y="194" fill="#a7b7c6">Understand Git while getting things done.</text>
+    <text x="48" y="246" fill="#f3f6fa">You: push</text>
+    <text x="48" y="286" fill="#74e6c1">Which branch should we send?</text>
+    <text x="68" y="326" fill="#f3f6fa">1. feature/theme</text>
+    <text x="420" y="326" fill="#a7b7c6">← your current branch</text>
+    <text x="68" y="360" fill="#f3f6fa">2. main</text>
+    <text x="420" y="360" fill="#a7b7c6">← the shared main branch</text>
+    <text x="48" y="412" fill="#a7b7c6">Explain. Preview the command. Ask. Then do.</text>
+    <text x="48" y="470" fill="#74e6c1" font-size="15">ENGLISH / TÜRKÇE</text>
+    <text x="274" y="470" fill="#a7b7c6" font-size="15">ZERO NPM DEPENDENCIES</text>
+    <text x="566" y="470" fill="#a7b7c6" font-size="15">LIVES WITH YOUR PROJECT</text>
+  </g>
+</svg>

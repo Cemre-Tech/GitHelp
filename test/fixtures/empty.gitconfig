@@ -1,0 +1,1 @@
+# Integration tests never read the developer's global Git configuration.

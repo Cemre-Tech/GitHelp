@@ -1,0 +1,36 @@
+name: Hata bildir
+description: Anlaşılmayan veya beklenmeyen bir davranışı bildir.
+title: "[Hata]: "
+body:
+  - type: markdown
+    attributes:
+      value: "Token, .env içeriği veya gerçek kişisel bilgileri paylaşma. Güvenlik açıkları için SECURITY.md dosyasını oku."
+  - type: input
+    id: version
+    attributes:
+      label: gitHelp, Node.js ve Git sürümlerin
+      placeholder: gitHelp 0.2.0 / Node 22 / Git 2.48
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: İşletim sistemi ve terminal
+      placeholder: Windows 11 / PowerShell
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Nasıl tekrar edebiliriz?
+      description: Çalıştırdığın komutu, seçtiğin seçenekleri ve beklediğin sonucu yaz.
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Ne oldu?
+      description: Gizli bilgilerden arındırılmış terminal çıktısını ekle.
+      render: text
+    validations:
+      required: true

@@ -1,0 +1,17 @@
+{
+  "name": "githelp",
+  "version": "0.2.0",
+  "description": "Understand Git and GitHub with a guided terminal in English and Turkish.",
+  "type": "module",
+  "bin": { "githelp": "src/cli.mjs" },
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "node src/cli.mjs",
+    "test": "node --test",
+    "check": "node scripts/check.mjs",
+    "demo": "node src/cli.mjs demo"
+  },
+  "files": ["src/", "docs/", "README.md", "README.en.md", "CONTRIBUTING.md", "CODE_OF_CONDUCT.md", "SECURITY.md", "LICENSE"],
+  "keywords": ["git", "github", "cli", "english", "turkish", "beginner", "education"],
+  "license": "MIT"
+}
