@@ -26,10 +26,12 @@ fork’una gönder ve asıl projeye pull request aç. Henüz npm yayını olmad�
 ## Korunacak ilkeler
 
 - Komutlar shell metni birleştirilerek çalıştırılmaz; program ve argümanlar ayrı gönderilir.
-- Mutasyonlar `applyPlan` üzerinden açıklama, önizleme ve açık onay alır.
+- Mutasyonlar `applyPlan` veya giriş akışının planı üzerinden açıklama, önizleme ve açık onay alır.
 - `--dry-run` mutasyon yapmaz. Özellikle `gh pr create --dry-run` kullanılmaz; bu bayrak push yapabilir.
 - Force push, otomatik reset, mevcut kurulumun üzerine yazma ve sessiz history rewrite eklenmez.
 - Gerçek kullanıcı hesabına veya GitHub’a bağlanan testler varsayılan test paketine eklenmez.
+- Giriş testlerinde GitHub CLI sonuçlarını taklit et; gerçek tarayıcı oturumu veya token kullanma.
+  Prova/iptal, kayıtlı oturumun yeniden kullanımı, yerel yardımcı kapsamı ve ayrı fetch/push hedeflerinin korunmasını dene.
 - `.env`, token, gerçek e-posta veya erişim anahtarlarını örneklere ve hata bildirimlerine koyma.
 - Harici bağımlılık eklemeden önce Node.js standart kütüphanesinin yeterli olup olmadığını değerlendir.
 

@@ -5,6 +5,8 @@ import { mkdtemp, mkdir, writeFile, readFile, rm, lstat, symlink } from 'node:fs
 import { tmpdir } from 'node:os';
 import { join, resolve, sep, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { login } from '../src/auth.mjs';
+import { setLanguage } from '../src/i18n.mjs';
 
 const cli = fileURLToPath(new URL('../src/cli.mjs', import.meta.url));
 const isolatedConfig = fileURLToPath(new URL('./fixtures/empty.gitconfig', import.meta.url));
@@ -441,4 +443,64 @@ test('English demo and invalid language options leave no project files', async t
     assert.doesNotMatch(result.stdout, /[çğıöşüÇĞİÖŞÜ]/);
   }
   assert.equal(await lstat(join(root, '.git')).then(() => true, () => false), false);
+});
+
+test('login configures real repository credentials and HTTPS without changing global Git settings', async t => {
+  setLanguage('en');
+  const root = await repo(t);
+  await git(root, 'remote', 'add', 'origin', 'git@github.com:example/project.git');
+  await git(root, 'config', 'remote.origin.pushurl', 'git@github.com:other-owner/fork.git');
+  const globalBefore = await readFile(isolatedConfig, 'utf8');
+  const calls = [];
+  const runCommand = async (program, args, options) => {
+    calls.push([program, args]);
+    if (program === 'gh') return { code: 0, stdout: args[0] === 'config' ? 'https\n' : '', stderr: '' };
+    const result = await command(program, args, options.cwd);
+    if (!options.allowFailure) assert.equal(result.code, 0, result.stderr);
+    return result;
+  };
+  const ctx = { cwd: root, dryRun: false, ui: {
+    input: { isTTY: false }, output: { isTTY: false },
+    title() {}, note() {}, write() {}, success() {}, async confirm() { return true; },
+  } };
+  await login(ctx, { run: runCommand, env: {}, inspect: async () => ({ root, remotes: ['origin'] }) });
+  assert.equal(await git(root, 'remote', 'get-url', 'origin'), 'https://github.com/example/project.git');
+  assert.equal(await git(root, 'remote', 'get-url', '--push', 'origin'), 'https://github.com/other-owner/fork.git');
+  const helper = await command('git', ['config', '--local', '--get-all', 'credential.https://github.com.helper'], root);
+  assert.equal(helper.stdout.replaceAll('\r', ''), '\n!gh auth git-credential\n');
+  assert.equal(await readFile(isolatedConfig, 'utf8'), globalBefore);
+  assert.ok(calls.every(([program, args]) => !(program === 'gh' && args[1] === 'login')));
+  const beforeRepeat = await readFile(join(root, '.git', 'config'), 'utf8');
+  await login(ctx, { run: runCommand, env: {}, inspect: async () => ({ root, remotes: ['origin'] }) });
+  assert.equal(await readFile(join(root, '.git', 'config'), 'utf8'), beforeRepeat);
+});
+
+test('connect normalizes a pasted GitHub SSH address to HTTPS without contacting GitHub', async t => {
+  const root = await repo(t);
+  const result = await run(root, ['connect', '--lang', 'en'], 'git@github.com:example/project.git\norigin\nyes\n');
+  assert.equal(result.code, 0, result.stdout);
+  assert.match(result.stdout, /over HTTPS/);
+  assert.equal(await git(root, 'remote', 'get-url', 'origin'), 'https://github.com/example/project.git');
+});
+
+test('login catches real URL rewrites activated only after SSH-to-HTTPS conversion', async t => {
+  setLanguage('en');
+  for (const setting of ['insteadOf', 'pushInsteadOf']) {
+    await t.test(setting, async child => {
+      const root = await repo(child);
+      await git(root, 'remote', 'add', 'origin', 'git@github.com:example/project.git');
+      await git(root, 'config', '--local', `url.git@github.com:.${setting}`, 'https://github.com/');
+      const before = await readFile(join(root, '.git', 'config'), 'utf8');
+      const ctx = { cwd: root, dryRun: false, ui: {
+        input: { isTTY: false }, output: { isTTY: false },
+        title() {}, note() {}, write() {}, success() {}, async confirm() { assert.fail('A rewritten target must not reach confirmation'); },
+      } };
+      const runCommand = async (program, args, options) => {
+        if (program === 'gh') return { code: 0, stdout: args[0] === 'config' ? 'https\n' : '', stderr: '' };
+        return command(program, args, options.cwd);
+      };
+      await assert.rejects(() => login(ctx, { run: runCommand, env: {}, inspect: async () => ({ root, remotes: ['origin'] }) }), /proposed HTTPS address/);
+      assert.equal(await readFile(join(root, '.git', 'config'), 'utf8'), before);
+    });
+  }
 });

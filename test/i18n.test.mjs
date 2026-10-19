@@ -49,11 +49,11 @@ test('every learning topic has a Turkish and an English explanation', () => {
 
 test('translated errors and recovery instructions are actionable in both languages', () => {
   setLanguage('en');
-  assert.match(errorHint(new Error('Authentication failed')), /Check your GitHub login/);
+  assert.match(errorHint(new Error('Authentication failed')), /Connect your GitHub account/);
   assert.match(errorHint(new Error('Not possible to fast-forward')), /histories have moved apart/);
   assert.throws(() => requireBranch({ branch: null }), /githelp branch/);
   setLanguage('tr');
-  assert.match(errorHint(new Error('Authentication failed')), /GitHub girişini kontrol et/);
+  assert.match(errorHint(new Error('Authentication failed')), /GitHub girişini githelp login/);
   assert.equal(t('Merhaba', 'Hello'), 'Merhaba');
   assert.equal(getLanguage(), 'tr');
   assert.throws(() => t('Missing translation'), /Both Turkish and English/);

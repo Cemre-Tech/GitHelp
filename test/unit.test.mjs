@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { PassThrough } from 'node:stream';
 import { readFile } from 'node:fs/promises';
 import { UI, Cancelled, clean, commandText } from '../src/ui.mjs';
-import { parseStatus, pushArgs, pullArgs, githubRepository, errorHint, UserError } from '../src/git.mjs';
+import { execute, parseStatus, pushArgs, pullArgs, githubRepository, errorHint, UserError } from '../src/git.mjs';
 import { assertSafeFiles, sensitivePath, selectFiles } from '../src/safety.mjs';
 import { applyPlan, VERSION } from '../src/app.mjs';
 import { setLanguage } from '../src/i18n.mjs';
@@ -94,7 +94,8 @@ test('dry-run and denied confirmation execute no command', async () => {
 });
 
 test('Git errors give actionable explanations', () => {
-  assert.match(errorHint(new Error('fatal: Authentication failed')), /gh auth login/);
+  assert.match(errorHint(new Error('fatal: Authentication failed')), /githelp login/);
+  assert.match(errorHint(new Error('git@github.com: Permission denied (publickey)')), /SSH anahtarı/);
   assert.match(errorHint(new Error('fatal: Not possible to fast-forward')), /ayrı ayrı/);
   assert.match(errorHint(new Error('non-fast-forward rejected')), /force push/);
   assert.match(errorHint(new Error('remote rejected: GH013 repository rule violations')), /özellik dalı/);
@@ -103,4 +104,22 @@ test('Git errors give actionable explanations', () => {
 test('runtime and npm package share the same version', async () => {
   const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
   assert.equal(pkg.version, VERSION);
+});
+
+test('UI restores input after a failed interactive child', async () => {
+  const input = new PassThrough();
+  const output = new PassThrough();
+  const ui = new UI({ input, output });
+  await assert.rejects(() => ui.withTerminal(async () => { throw new Error('synthetic child failure'); }), /synthetic child failure/);
+  input.end('yes\n');
+  assert.equal(await ui.confirm(), true);
+  ui.close();
+});
+
+test('interactive runner enables prompts and cleans up its signal listener', async () => {
+  const before = process.listenerCount('SIGINT');
+  const result = await execute(process.execPath, ['--eval', 'process.exit(process.env.GH_PROMPT_DISABLED === undefined ? 0 : 1)'],
+    { interactive: true, env: { GH_PROMPT_DISABLED: '1' } });
+  assert.equal(result.code, 0);
+  assert.equal(process.listenerCount('SIGINT'), before);
 });

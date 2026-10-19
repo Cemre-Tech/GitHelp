@@ -6,6 +6,7 @@ import { execute, git, gitText, repository, UserError, requireBranch, requireCle
 import { assertSafeFiles, selectFiles } from './safety.mjs';
 import { demo, getLessons, teach } from './lessons.mjs';
 import { install } from './install.mjs';
+import { login } from './auth.mjs';
 
 export const VERSION = '0.2.0';
 
@@ -14,6 +15,7 @@ const aliases = {
   baslat: 'init', 'başlat': 'init', bagla: 'connect', 'bağla': 'connect', github: 'publish',
   yayinla: 'publish', 'yayınla': 'publish', kur: 'install', doktor: 'doctor', ogren: 'learn', 'öğren': 'learn',
   yardim: 'help', 'yardım': 'help', '--help': 'help', '-h': 'help', '--version': 'version', '-v': 'version',
+  giris: 'login', 'giriş': 'login',
 };
 
 function getMenu() { return [
@@ -24,6 +26,7 @@ function getMenu() { return [
   { id: 'branch', label: t("Çalışma dalımı seç  / branch", "Choose my work branch  / branch"), description: t("Yeni dal oluştur veya başka dala geç.", "Create a branch or switch to another one.") },
   { id: 'pr', label: t("İnceleme isteği aç  / pr", "Ask for a review  / pr"), description: t("GitHub’da bir taslak pull request aç.", "Open a draft pull request on GitHub.") },
   { id: 'connect', label: t("GitHub adresini bağla  / bagla", "Connect a GitHub address  / connect"), description: t("Var olan GitHub reponun adresini tanıt.", "Add the address of your existing GitHub repository.") },
+  { id: 'login', label: t('GitHub hesabımla giriş yap  / giriş', 'Sign in to my GitHub account  / login'), description: t('Bir kez tarayıcıdan bağlan; geçerli oturum tekrar kullanılır.', 'Connect through your browser once; reuse the valid session.') },
   { id: 'publish', label: t("GitHub’da yeni repo oluştur  / yayinla", "Create a GitHub repository  / publish"), description: t("GitHub CLI ile yeni bir uzak repo aç.", "Use GitHub CLI to create a remote repository.") },
   { id: 'doctor', label: t("Kurulumumu kontrol et  / doktor", "Check my setup  / doctor"), description: t("Git, kimlik ve bağlantı durumunu öğren.", "Check Git, your commit identity, and remotes.") },
   { id: 'learn', label: t("Kelimeleri öğren  / ogren", "Learn the words  / learn"), description: t("Git’i küçük örneklerle tanı.", "Get to know Git through simple explanations.") },
@@ -193,17 +196,18 @@ async function connect(ctx) {
   const target = githubRepository(url);
   const name = validateRemote(await ctx.ui.ask(t("Bu adresin kısa adı", "A short name for this address"), { fallback: 'origin' }));
   if (repo.remotes.includes(name)) throw new UserError(t(`${name} zaten kayıtlı. Mevcut bağlantı değiştirilmedi. Başka bir kısa ad seçebilirsin.`, `${name} is already registered. The existing address was not changed. Choose another short name.`));
-  const remoteUrl = url.startsWith('git@') ? `git@github.com:${target.fullName}.git` : target.url;
+  const remoteUrl = target.url;
+  if (url.startsWith('git@')) ctx.ui.note(t('Aynı repoya HTTPS ile bağlanacağız. SSH anahtarı yerine tarayıcı girişi kullanmak için login seçebilirsin.', 'We will connect to the same repository over HTTPS. Choose login to sign in through your browser instead of using an SSH key.'));
   if (await applyPlan(ctx, repo.root, `${name} → ${target.fullName}`, [{ program: 'git', args: ['remote', 'add', '--', name, remoteUrl] }])) {
-    ctx.ui.success(t("Adres bağlandı. Kayıtlarını göndermek için: push.", "Address connected. Use push to send your commits."));
+    ctx.ui.success(t('Adres bağlandı. Hesabını login ile bir kez bağlayabilir, ardından push ile gönderebilirsin.', 'Address connected. Connect your account once with login, then send your commits with push.'));
   }
 }
 
 async function requireGh(ctx) {
   await execute('gh', ['--version'], { cwd: ctx.cwd });
   // Never print gh auth status: it may include account details or token metadata.
-  const auth = await execute('gh', ['auth', 'status', '--hostname', 'github.com'], { cwd: ctx.cwd, allowFailure: true });
-  if (auth.code !== 0) throw new UserError(t("GitHub CLI girişi gerekli. Kendi terminalinde gh auth login çalıştır, sonra tekrar gel.", "Sign in with GitHub CLI first. Run gh auth login in your own terminal, then come back."));
+  const auth = await execute('gh', ['auth', 'status', '--active', '--hostname', 'github.com'], { cwd: ctx.cwd, allowFailure: true });
+  if (auth.code !== 0) throw new UserError(t('GitHub hesabını bir kez githelp login ile tarayıcıdan bağla, sonra tekrar gel.', 'Connect your GitHub account once through your browser with githelp login, then come back.'));
 }
 
 async function publish(ctx) {
@@ -278,8 +282,8 @@ async function doctor(ctx) {
   }
   try {
     await execute('gh', ['--version'], { cwd: ctx.cwd });
-    const auth = await execute('gh', ['auth', 'status', '--hostname', 'github.com'], { cwd: ctx.cwd, allowFailure: true });
-    ctx.ui.note(t(`GitHub CLI: kurulu. Oturum: ${auth.code === 0 ? t("hazır", "ready") : t("gh auth login gerekli", "gh auth login needed")}.`, `GitHub CLI: installed. Sign-in: ${auth.code === 0 ? 'ready' : 'gh auth login needed'}.`));
+    const auth = await execute('gh', ['auth', 'status', '--active', '--hostname', 'github.com'], { cwd: ctx.cwd, allowFailure: true });
+    ctx.ui.note(t(`GitHub CLI: kurulu. Oturum: ${auth.code === 0 ? 'hazır' : 'githelp login ile bağlan'}.`, `GitHub CLI: installed. Sign-in: ${auth.code === 0 ? 'ready' : 'connect with githelp login'}.`));
   } catch (error) {
     if (!(error instanceof UserError)) throw error;
     ctx.ui.note(t("GitHub CLI bulunamadı. Temel Git işlemleri çalışır; repo ve PR açmak için: https://cli.github.com", "GitHub CLI was not found. Basic Git operations still work. For repository and PR creation: https://cli.github.com"));
@@ -307,6 +311,7 @@ export function help(ui) {
   pr                   GitHub’da taslak inceleme isteği aç (gh gerekli)
   baslat               Bu klasörde Git’i başlat (main)
   bagla                Var olan GitHub repo adresini ekle
+  login / giris        GitHub hesabını tarayıcıdan bağla; oturumu tekrar kullan
   yayinla              GitHub’da yeni repo oluştur (gh gerekli)
   doktor               Kurulumu ve commit kimliğini kontrol et
   ogren [kelime]       Kelimeleri sade Türkçeyle öğren
@@ -333,6 +338,7 @@ export function help(ui) {
   pr                   Open a draft review request on GitHub (needs gh).
   init                 Start a Git notebook in this folder, on main.
   connect              Add an existing GitHub repository address.
+  login                Connect in your browser and reuse the saved session.
   publish              Create a repository on GitHub (needs gh).
   doctor               Check your setup and commit identity.
   learn [word]         Learn Git words through simple explanations.
@@ -363,7 +369,7 @@ export async function run(ctx, argv) {
   if (command === 'demo') return demo(ctx.ui);
   if (command === 'learn') return learn(ctx, positional[1]);
   if (command === 'install') return install(ctx, positional[1]);
-  const actions = { status, commit, push, pull, branch, init, connect, publish, pr, doctor, learn,
+  const actions = { status, commit, push, pull, branch, init, connect, login, publish, pr, doctor, learn,
     install: context => install(context), demo: context => demo(context.ui) };
   if (!command) {
     ctx.ui.title(`gitHelp ${VERSION}`);

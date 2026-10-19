@@ -11,23 +11,30 @@ export class CommandError extends Error {
     this.program = program;
     this.args = args;
     this.code = result.code;
+    this.signal = result.signal;
   }
 }
 
-export function execute(program, args, { cwd = process.cwd(), env = {}, allowFailure = false } = {}) {
+export function execute(program, args, { cwd = process.cwd(), env = {}, allowFailure = false, interactive = false } = {}) {
   return new Promise((resolveResult, reject) => {
+    const childEnv = { ...process.env, GIT_TERMINAL_PROMPT: '0', GH_PROMPT_DISABLED: '1', GH_PAGER: 'cat', ...env };
+    if (interactive) delete childEnv.GH_PROMPT_DISABLED;
     const child = spawn(program, args, {
-      cwd, shell: false, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GH_PROMPT_DISABLED: '1', GH_PAGER: 'cat', ...env },
+      cwd, shell: false, windowsHide: true, stdio: interactive ? 'inherit' : ['ignore', 'pipe', 'pipe'],
+      env: childEnv,
     });
+    const interrupt = () => child.kill('SIGINT');
+    if (interactive) process.on('SIGINT', interrupt);
+    const cleanup = () => { if (interactive) process.removeListener('SIGINT', interrupt); };
     let stdout = '';
     let stderr = '';
-    child.stdout.setEncoding('utf8').on('data', data => { stdout += data; });
-    child.stderr.setEncoding('utf8').on('data', data => { stderr += data; });
-    child.on('error', error => reject(new UserError(error.code === 'ENOENT'
+    child.stdout?.setEncoding('utf8').on('data', data => { stdout += data; });
+    child.stderr?.setEncoding('utf8').on('data', data => { stderr += data; });
+    child.on('error', error => { cleanup(); reject(new UserError(error.code === 'ENOENT'
       ? t(`${program} bulunamadı. ${program === 'git' ? 'Git: https://git-scm.com/downloads' : 'GitHub CLI: https://cli.github.com'} adresinden kur.`, `${program} was not found. Install it from ${program === 'git' ? 'https://git-scm.com/downloads' : 'https://cli.github.com'}.`)
-      : clean(error.message))));
+      : clean(error.message))); });
     child.on('close', (code, signal) => {
+      cleanup();
       const result = { code: code ?? 1, stdout, stderr, signal };
       if (result.code !== 0 && !allowFailure) reject(new CommandError(program, args, result));
       else resolveResult(result);
@@ -117,9 +124,10 @@ export function githubRepository(value) {
 
 export function errorHint(error) {
   const message = error.message.toLowerCase();
+  if (/publickey/.test(message)) return t('SSH anahtarı doğrulanamadı. githelp login ile tarayıcıdan giriş yapıp bu reponun bağlantısını HTTPS olarak ayarlayabilirsin.', 'Your SSH key could not be verified. Use githelp login to sign in through your browser and switch this repository to HTTPS.');
   if (/protected branch|gh006|gh013|repository rule/.test(message)) return t("Bu dal GitHub kurallarıyla korunuyor. Bir özellik dalı oluştur, onu push ile gönder ve pr ile inceleme isteği aç.", "GitHub rules protect this branch. Create a feature branch, push it, and use pr to ask for a review.");
   if (/non-fast-forward|fetch first|rejected/.test(message)) return t("Uzakta sende olmayan kayıtlar olabilir. Önce pull dene. Dallar ayrıldıysa ekip arkadaşınla incele; force push kullanma.", "The remote may have saves you do not have. Try pull first. If histories have moved apart, review them with a teammate; do not force push.");
-  if (/authentication|permission denied|could not read username|403|401/.test(message)) return t("GitHub girişini kontrol et: gh auth login. HTTPS için gerekirse gh auth setup-git kullan. Tokenını buraya yazma.", "Check your GitHub login: gh auth login. For HTTPS, you may also need gh auth setup-git. Do not enter a token here.");
+  if (/authentication|permission denied|could not read username|403|401/.test(message)) return t('GitHub girişini githelp login ile bağla. Repo erişiminin de olduğundan emin ol. Oturum geçerliyse yeniden giriş gerekmez.', 'Connect your GitHub account with githelp login. Make sure you also have repository access. A valid session does not need another sign-in.');
   if (/identity unknown|unable to auto-detect/.test(message)) return t("Git seni tanımıyor. githelp doktor ile bu projeye adını ve e-posta adresini ekle.", "Git does not know your identity yet. Use githelp doctor to set a name and email for this project.");
   if (/not possible to fast-forward|divergent/.test(message)) return t("İki dal ayrı ayrı ilerlemiş. Otomatik birleştirme yapılmadı. Birlikte incelemek için ekip arkadaşından destek al.", "The two histories have moved apart. No automatic merge was made. Ask a teammate to review them with you.");
   if (/could not resolve|unable to access ['"]?https?:|timed out|connection/.test(message)) return t("İnternet bağlantını ve uzak repo adresini kontrol et. VPN veya SSH ayarları da etkileyebilir.", "Check your internet connection and remote repository address. VPN or SSH settings may also be involved.");

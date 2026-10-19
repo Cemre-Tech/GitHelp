@@ -25,14 +25,26 @@ export class UI {
     this.output = output;
     this.color = Boolean(color && output.isTTY);
     this.queue = [];
+    this.openReader();
+  }
+
+  openReader() {
     this.ended = false;
-    this.rl = createInterface({ input, output, terminal: Boolean(input.isTTY && output.isTTY), crlfDelay: Infinity });
+    this.rl = createInterface({ input: this.input, output: this.output, terminal: Boolean(this.input.isTTY && this.output.isTTY), crlfDelay: Infinity });
     this.rl.on('line', line => {
       if (this.pending) { const resolve = this.pending; this.pending = null; resolve(line); }
       else this.queue.push(line);
     });
     this.rl.on('close', () => { this.ended = true; this.pending?.(null); this.pending = null; });
     this.rl.on('SIGINT', () => { this.queue.length = 0; this.rl.close(); });
+  }
+
+  async withTerminal(action) {
+    // Give gh exclusive ownership of stdin and terminal mode during browser login.
+    this.queue.length = 0;
+    this.rl.close();
+    try { return await action(); }
+    finally { this.openReader(); }
   }
 
   write(message = '') { this.output.write(`${clean(message)}\n`); }

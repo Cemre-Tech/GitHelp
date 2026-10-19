@@ -18,6 +18,16 @@ gitHelp yerel Git ve GitHub CLI kurulumunu çalıştırır. Git hook’ları, cr
 ayarları bu programların normal çalışma davranışıdır. Güvenmediğin bir repo veya yürütülebilir dosyayı
 güvenilir hale getirmez. `.github/githelp` altındaki kod, o projeye commit edilmiş kod olarak incelenmelidir.
 
+`login` kişisel erişim tokenı istemez; gerekirse GitHub CLI’nin tarayıcı girişi açılır. gitHelp kendi kimlik
+bilgisi dosyasını yazmaz ve tokenı `.github/githelp` içine koymaz. Oturumu GitHub CLI saklar: işletim
+sisteminin kimlik deposu kullanılamadığında düz metin kullanıcı ayar dosyasına dönebilir. Giriş, GitHub CLI
+kullanıcı/host tercihlerini etkiler; gitHelp’ın kendi HTTPS yardımcısı ve uzak adres değişiklikleri ise
+onaydan sonra bu projenin `.git/config` dosyasına yazılır. Repo içindeki helper ayarı token içermez.
+
+`GH_TOKEN` veya `GITHUB_TOKEN`, GitHub CLI’nin kayıtlı oturumundan önceliklidir. Kalıcı tarayıcı girişi bu
+değişkenler varken durur; yalnız değişken adları belirtilir. Gerçek değerleri çıktılara, ekran görüntülerine
+veya hata bildirimlerine ekleme. Oturum durumu komutlarının ham çıktısı gitHelp tarafından gösterilmez.
+
 Gizli dosya denetimi dosya adlarına bakar; içerik veya Git geçmişi taraması yapmaz. Daha önce commit
 edilmiş bir gizli bilginin gönderilmesini algıladığı iddia edilmez. Hata çıktısındaki maskeleme de tüm
 olası credential biçimlerini kapsamaz.

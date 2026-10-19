@@ -14,8 +14,9 @@ gitHelp terminalinde yanında oturur: ne yapmak istediğini sorar, sade Türkçe
 
 ## Hemen dene
 
-Gerekenler: **Node.js 22+**, **Git 2.28+**. Yeni GitHub reposu veya PR açmak için ayrıca
-[GitHub CLI](https://cli.github.com) gerekir. gitHelp’ın harici npm bağımlılığı yoktur.
+Gerekenler: **Node.js 22+**, **Git 2.28+**. Tarayıcıyla GitHub girişi, yeni GitHub reposu veya PR açmak için ayrıca
+[GitHub CLI](https://cli.github.com) gerekir. Temel Git işlemleri `gh` olmadan da çalışır;
+push/pull için kendi Git erişiminin hazır olması gerekir. gitHelp’ın harici npm bağımlılığı yoktur.
 
 Bu klasörde tek komutla aç:
 
@@ -55,6 +56,41 @@ npm start
 
 > İlk sürüm kaynak koddan çalışmaya hazırdır. Paket henüz npm’de yayımlanmadı;
 > `npx githelp` şu anda bu projeye ait doğrulanmış bir kurulum yöntemi değildir.
+
+## GitHub’a tarayıcıyla bağlan
+
+Her push için token üretmen veya yapıştırman gerekmez. GitHub CLI kuruluysa kaynak klasöründe:
+
+```sh
+npm start -- login --lang tr
+```
+
+Kısa komutu bağladıysan kendi projenin terminalinde `githelp login` kullanabilirsin.
+`giris` ve `giriş` aynı komutun Türkçe karşılıklarıdır.
+
+Geçerli, kayıtlı bir GitHub CLI oturumun varsa yeniden giriş yapılmaz. Yoksa planı görüp onayladıktan sonra
+GitHub’ın tarayıcı girişi açılır. Terminalde gösterilen tek kullanımlık kodla GitHub’da izin verirsin;
+kişisel erişim tokenı hazırlaman gerekmez. Yeni giriş için gerçek, etkileşimli bir terminal gerekir.
+
+Mevcut oturumun bağlantı tercihi SSH ise aynı planda GitHub CLI’ın kullanıcı/host tercihi HTTPS’e çevrilir;
+yeniden giriş gerekmez ve daha sonra `yayinla` ile oluşturulan repolar da HTTPS kullanır.
+
+Projedeki desteklenen GitHub SSH adresleri de önizlemede gösterilir. Onaylarsan örneğin
+`git@github.com:kullanici/proje.git`, aynı reponun `https://github.com/kullanici/proje.git` adresine çevrilir.
+Alma ve ayrı gönderim adresleri kendi repo hedefleri korunarak ele alınır. gitHelp, bu projedeki GitHub HTTPS
+işlemleri için GitHub CLI kimlik yardımcısını `.git/config` içinde ayarlar. Birden çok adres, başka yerden
+devralınmış ayar veya URL yönlendirmesi güvenle ele alınamıyorsa işlem durur. `login` commit veya push yapmaz;
+girişten sonra göndermek için ayrıca `push` seçersin. `Permission denied (publickey)` hatası için de bu yolu kullanabilirsin.
+
+gitHelp kimlik bilgilerini `.github/githelp` içine kaydetmez. Oturumu GitHub CLI saklar: mümkünse işletim
+sisteminin kimlik deposunu kullanır, bu depo kullanılamıyorsa kullanıcı ayar dosyasında düz metne dönebilir.
+Giriş, GitHub CLI’nin kullanıcı/host tercihlerini kaydeder; HTTPS tercihi o hosttaki diğer `gh` hesaplarını da
+etkileyebilir ve CLI Git kimlik doğrulaması kurulumunu sorabilir. gitHelp’ın kendi Git yardımcısı ve adres
+değişiklikleri bu projeye aittir. Ayrıntılar: [resmî giriş belgesi](https://cli.github.com/manual/gh_auth_login).
+
+`GH_TOKEN` veya `GITHUB_TOKEN` ortam değişkeni tanımlıysa kayıtlı oturumdan önceliklidir.
+Kalıcı tarayıcı girişi için bu değişkenleri terminal oturumundan kaldırıp tekrar dene; değerlerini araca veya hata bildirimine yazma.
+Prova için `npm start -- login --dry-run --lang tr` kullan: tarayıcı açılmaz, ayar veya adres değiştirilmez.
 
 ## Günlük kullanım
 
@@ -158,6 +194,7 @@ Kendi projenin kök klasöründe sırayla:
 githelp baslat
 githelp doktor
 githelp commit
+githelp login
 githelp yayinla
 githelp push
 ```
@@ -165,20 +202,14 @@ githelp push
 - `baslat`: Henüz Git yoksa kayıt defterini `main` dalıyla açar.
 - `doktor`: Kurulumu kontrol eder; gerekirse yalnız bu projeye commit adı ve e-postası ekler.
 - `commit`: Dosya numaralarını ve bir kayıt açıklamasını sorar.
+- `login`: Kayıtlı GitHub oturumunu kullanır veya tarayıcıyla giriş yapar; projeyi HTTPS erişimine hazırlar.
 - `yayinla`: GitHub CLI oturumu ile repo oluşturur. Özel / herkese açık seçimini sorar; varsayılan özeldir.
 - `push`: Dalını ve uzak bağlantını seçtirip commit’lerini gönderir.
 
 GitHub’da repon zaten varsa `yayinla` yerine `bagla` kullan. HTTPS ve `git@github.com:...` biçimindeki
 SSH adresleri desteklenir. GitHub CLI kurulu değilse [GitHub’da boş repo aç](https://github.com/new),
 sonra `bagla` ve `push` ile devam et. Git erişiminin HTTPS veya SSH ile ayrıca hazır olması gerekir.
-
-GitHub CLI girişi, aracın dışında ve kendi terminalinde yapılır:
-
-```sh
-gh auth login
-```
-
-HTTPS kimliğini Git’e bağlamak gerekiyorsa: `gh auth setup-git`. Tokenını gitHelp’a yazman gerekmez.
+GitHub CLI ile giriş yaptıysan `bagla` sonrasında `login` çalıştırarak bu proje için HTTPS erişimini hazırlayabilirsin.
 
 ## Komut sözlüğü
 
@@ -192,13 +223,14 @@ HTTPS kimliğini Git’e bağlamak gerekiyorsa: `gh auth setup-git`. Tokenını 
 | `pr` | — | GitHub’da mevcut dal için taslak pull request |
 | `baslat` | `init` | Bu klasörde Git başlatma |
 | `bagla` | `connect` | Var olan GitHub adresini yeni remote olarak ekleme |
+| `login` | `giris` | Kayıtlı oturumu kullanma veya tarayıcıyla GitHub girişi ve proje için HTTPS kurulumu |
 | `yayinla` | `publish` | GitHub’da özel veya herkese açık repo oluşturma |
 | `doktor` | `doctor` | Araçlar, kimlik ve bağlantı kontrolü |
 | `ogren` | `learn` | Git, branch, stage, commit, push, pull, PR ve conflict açıklamaları |
 | `kur [klasör]` | `install` | Bağımsız `.github/githelp` kurulumu |
 | `demo` | — | Git çalıştırmayan örnek tur |
 
-`gönder`, `bağla`, `başlat`, `yayınla`, `öğren` ve `yardım` yazımları da desteklenir.
+`gönder`, `bağla`, `başlat`, `giriş`, `yayınla`, `öğren` ve `yardım` yazımları da desteklenir.
 Kaynak klasöründe doğrudan kullanım: `node src/cli.mjs push` veya `npm start -- push`.
 
 ## Önce prova yap
@@ -207,10 +239,11 @@ Kaynak klasöründe doğrudan kullanım: `node src/cli.mjs push` veya `npm start
 githelp push --dry-run
 githelp commit --dry-run
 githelp kur --dry-run
+githelp login --dry-run
 ```
 
 `--dry-run` dosya değiştiren veya uzak servis üzerinde işlem yapan komutları **çalıştırmaz**;
-yalnızca planı gösterir. Yerel durum okumaları ve PR/repo işlemlerindeki GitHub CLI oturum
+yalnızca planı gösterir. Tarayıcıyla giriş de başlatılmaz. Yerel durum okumaları ve giriş/PR/repo işlemlerindeki GitHub CLI oturum
 kontrolleri yapılabilir. GitHub CLI’nin kendi `pr create --dry-run` bayrağı kullanılmaz.
 
 Renkleri kapatmak için `--no-color` veya `NO_COLOR` ortam değişkeni kullanılır.
@@ -245,8 +278,9 @@ npm pack --dry-run
 ```
 
 Testler geçici klasörlerde gerçek Git repoları ve yerel bare uzak repolar oluşturur. Kullanıcının global
-Git ayarlarını okumaz, GitHub’a bağlanmaz, gerçek hesaba push veya PR işlemi yapmaz.
-GitHub PR/repo servisleriyle canlı uçtan uca testler bu paketin otomatik testlerine dahil değildir.
+Git ayarlarını okumaz, GitHub’a bağlanmaz, gerçek hesaba giriş, push veya PR işlemi yapmaz.
+Giriş akışı sahte komut sonuçlarıyla sınanır; canlı tarayıcı girişi ve GitHub PR/repo servisleriyle uçtan uca testler
+bu paketin otomatik testlerine dahil değildir.
 
 GitHub Actions için Windows, macOS ve Linux üzerinde Node.js 22/24 test matrisi hazırdır.
 Bu matristeki uzak çalıştırmalar repo GitHub’a gönderildikten sonra gerçekleşir.
