@@ -10,6 +10,14 @@ import { setLanguage } from '../src/i18n.mjs';
 
 setLanguage('tr');
 
+test('bounded commands terminate a stalled child rather than leave it running', async () => {
+  const started = Date.now();
+  const result = await execute(process.execPath, ['-e', 'setInterval(() => {}, 1000)'],
+    { allowFailure: true, timeoutMs: 100 });
+  assert.notEqual(result.code, 0);
+  assert.ok(Date.now() - started < 5000);
+});
+
 test('porcelain parser preserves spaces, Unicode, newlines and rename pairs', () => {
   const files = parseStatus(' M boş luk.txt\0?? yeni\nsatır.txt\0R  yeni.txt\0eski.txt\0UU conflict.txt\0');
   assert.equal(files.length, 4);
@@ -97,7 +105,7 @@ test('Git errors give actionable explanations', () => {
   assert.match(errorHint(new Error('fatal: Authentication failed')), /githelp login/);
   assert.match(errorHint(new Error('git@github.com: Permission denied (publickey)')), /SSH anahtarı/);
   assert.match(errorHint(new Error('fatal: Not possible to fast-forward')), /ayrı ayrı/);
-  assert.match(errorHint(new Error('non-fast-forward rejected')), /force push/);
+  assert.match(errorHint(new Error('non-fast-forward rejected')), /force push/i);
   assert.match(errorHint(new Error('remote rejected: GH013 repository rule violations')), /özellik dalı/);
 });
 

@@ -7,6 +7,7 @@ import { assertSafeFiles, selectFiles } from './safety.mjs';
 import { demo, getLessons, teach } from './lessons.mjs';
 import { install } from './install.mjs';
 import { login } from './auth.mjs';
+import { inspectConnection, showConnection, setup, setupOption } from './onboarding.mjs';
 
 export const VERSION = '0.2.0';
 
@@ -15,17 +16,18 @@ const aliases = {
   baslat: 'init', 'başlat': 'init', bagla: 'connect', 'bağla': 'connect', github: 'publish',
   yayinla: 'publish', 'yayınla': 'publish', kur: 'install', doktor: 'doctor', ogren: 'learn', 'öğren': 'learn',
   yardim: 'help', 'yardım': 'help', '--help': 'help', '-h': 'help', '--version': 'version', '-v': 'version',
-  giris: 'login', 'giriş': 'login',
+  giris: 'login', 'giriş': 'login', kurulum: 'setup',
 };
 
 function getMenu() { return [
-  { id: 'status', label: t("Neler değişti?  / status", "What changed?  / status"), description: t("Dosyalarının durumuna bak.", "Check the state of your files.") },
-  { id: 'commit', label: t("Çalışmamı kaydet  / commit", "Save my work  / commit"), description: t("Dosyalarını seç, bir kayıt notu yaz.", "Choose files and write a short save note.") },
-  { id: 'push', label: t("Kayıtlarımı gönder  / push", "Send my saves  / push"), description: t("Bir dal seç, GitHub’a gönder.", "Choose a branch and send its commits to GitHub.") },
-  { id: 'pull', label: t("Yeni kayıtları al  / pull", "Get new saves  / pull"), description: t("Çalıştığın dalı uzaktaki aynı daldan güncelle.", "Update your branch from the remote branch with the same name.") },
+  { id: 'status', label: t("Değişen dosyaları gör  / status", "See changed files  / status"), description: t("Yeni, değişmiş ve commit için seçilmiş dosyaları gösterir; dosyaları değiştirmez.", "Show new, modified, and staged files without changing them.") },
+  { id: 'commit', label: t("Değişiklikleri bilgisayarımda kaydet  / commit", "Save changes on my computer  / commit"), description: t("Dosyalarını seç ve ne yaptığını yaz. Bu adım GitHub’a göndermez.", "Choose files and describe your changes. This step does not upload to GitHub.") },
+  { id: 'push', label: t("Commit’leri GitHub’a gönder  / push", "Send commits to GitHub  / push"), description: t("Önce dalı ve repo adresini seç. Yalnız commit ile kaydettiğin değişiklikler gönderilir.", "Choose a branch and repository address. Only committed changes are sent.") },
+  { id: 'pull', label: t("GitHub’daki yeni commit’leri al  / pull", "Get new commits from GitHub  / pull"), description: t("Çalıştığın dalı aynı isimli uzak daldan günceller. Önce yerel değişikliklerini commit et.", "Update your current branch from the remote branch of the same name. Commit local changes first.") },
   { id: 'branch', label: t("Çalışma dalımı seç  / branch", "Choose my work branch  / branch"), description: t("Yeni dal oluştur veya başka dala geç.", "Create a branch or switch to another one.") },
   { id: 'pr', label: t("İnceleme isteği aç  / pr", "Ask for a review  / pr"), description: t("GitHub’da bir taslak pull request aç.", "Open a draft pull request on GitHub.") },
-  { id: 'connect', label: t("GitHub adresini bağla  / bagla", "Connect a GitHub address  / connect"), description: t("Var olan GitHub reponun adresini tanıt.", "Add the address of your existing GitHub repository.") },
+  setupOption(),
+  { id: 'connect', label: t("GitHub repo adresini ekle  / bagla", "Add a GitHub repository address  / connect"), description: t("Commit’lerin nereye gönderileceğini kaydeder. Hesaba giriş ayrı bir adımdır.", "Save where your commits will be sent. Account sign-in is a separate step.") },
   { id: 'login', label: t('GitHub hesabımla giriş yap  / giriş', 'Sign in to my GitHub account  / login'), description: t('Bir kez tarayıcıdan bağlan; geçerli oturum tekrar kullanılır.', 'Connect through your browser once; reuse the valid session.') },
   { id: 'publish', label: t("GitHub’da yeni repo oluştur  / yayinla", "Create a GitHub repository  / publish"), description: t("GitHub CLI ile yeni bir uzak repo aç.", "Use GitHub CLI to create a remote repository.") },
   { id: 'doctor', label: t("Kurulumumu kontrol et  / doktor", "Check my setup  / doctor"), description: t("Git, kimlik ve bağlantı durumunu öğren.", "Check Git, your commit identity, and remotes.") },
@@ -36,7 +38,7 @@ function getMenu() { return [
 function showFiles(ui, files) {
   files.forEach((file, index) => {
     const type = file.conflict ? t("çakışıyor", "conflicted") : file.code === '??' ? t("yeni", "new") : file.code.includes('D') ? t("silinmiş", "deleted") : file.code.includes('R') ? t("yeniden adlandırılmış", "renamed") : t("değişmiş", "modified");
-    ui.write(`  ${index + 1}. ${file.path} — ${type}${file.staged ? t(", kayıt sepetinde", ", staged") : ''}`);
+    ui.write(`  ${index + 1}. ${file.path} — ${type}${file.staged ? t(", sonraki commit için hazırlanmış", ", prepared for the next commit") : ''}`);
   });
 }
 
@@ -67,15 +69,15 @@ async function status(ctx) {
   teach(ctx.ui, 'status');
   ctx.ui.note(t(`Proje: ${repo.root}`, `Project: ${repo.root}`));
   ctx.ui.note(t(`Çalıştığın dal: ${repo.branch || t("bir dalda değilsin (detached HEAD)", "not on a branch (detached HEAD)")}`, `Current branch: ${repo.branch || t("bir dalda değilsin (detached HEAD)", "not on a branch (detached HEAD)")}`));
-  if (!repo.hasCommit) ctx.ui.note(t("Henüz ilk kaydın yok. commit ile başlayabilirsin.", "You have no saves yet. Start with commit."));
+  if (!repo.hasCommit) ctx.ui.note(t("Henüz commit yok. İlk yerel kaydı oluşturmak için commit kullan.", "There are no commits yet. Use commit to create your first local record of changes."));
   if (repo.files.length) showFiles(ctx.ui, repo.files);
-  else ctx.ui.success(t("Çalışma masan temiz. Kaydedilmemiş dosya değişikliği yok.", "Your worktable is clean. There are no unsaved file changes."));
+  else ctx.ui.success(t("Commit edilmemiş dosya değişikliği yok. Bu, GitHub’a gönderildiği anlamına gelmez.", "There are no uncommitted file changes. This does not mean they have been pushed to GitHub."));
   if (repo.hasCommit && repo.branch) {
     const upstream = await git(repo.root, ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{upstream}'], { allowFailure: true });
     if (upstream.code === 0) {
       const counts = await gitText(repo.root, ['rev-list', '--left-right', '--count', 'HEAD...@{upstream}']);
       const [ahead, behind] = counts.split(/\s+/);
-      ctx.ui.note(t(`Son bilinen ${upstream.stdout.trim()} durumuna göre: ${ahead} kayıt önde, ${behind} kayıt geride.`, `Compared with the last known ${upstream.stdout.trim()}: ${ahead} saves ahead, ${behind} behind.`));
+      ctx.ui.note(t(`Son bilinen ${upstream.stdout.trim()} durumuna göre: gönderilmemiş ${ahead} yerel commit, alınmamış ${behind} uzak commit.`, `Compared with the last known ${upstream.stdout.trim()}: ${ahead} local commits not pushed, ${behind} remote commits not received.`));
       ctx.ui.note(t("Bu bilgi son fetch/pull anına aittir; şu anda ağa bağlanılmadı.", "This is from the last fetch/pull. No network request was made just now."));
     } else ctx.ui.note(t("Bu dal henüz bir uzak dalı takip etmiyor. İlk push bağlantıyı kurar.", "This branch is not tracking a remote branch yet. Its first push sets that up."));
   }
@@ -93,11 +95,11 @@ async function commit(ctx) {
   const selected = selectFiles(answer, repo.files);
   assertSafeFiles(selected);
   const omitted = repo.files.filter(file => file.staged && !selected.includes(file));
-  if (omitted.length) throw new UserError(t(`Kayıt sepetinde seçmediğin dosyalar var: ${omitted.map(file => file.path).join(', ')}. Onları da seç veya önce Git ile sepetten çıkar. Henüz hiçbir dosya eklenmedi.`, `Some staged files were not selected: ${omitted.map(file => file.path).join(', ')}. Select them too, or unstage them with Git first. No files have been added yet.`));
+  if (omitted.length) throw new UserError(t(`Önceden commit için hazırlanmış ama şimdi seçmediğin dosyalar var: ${omitted.map(file => file.path).join(', ')}. Onları da seç veya önce Git ile commit hazırlığından çıkar (unstage). Henüz hiçbir dosya eklenmedi.`, `Some staged files were not selected: ${omitted.map(file => file.path).join(', ')}. Select them too, or unstage them with Git first. No files have been added yet.`));
   const identity = await Promise.all(['user.name', 'user.email'].map(key => gitText(repo.root, ['config', '--get', key], { allowFailure: true })));
   if (identity.some(value => !value)) throw new UserError(t("İlk kayıttan önce Git’e adını ve e-postanı tanıtmalısın: githelp doktor", "Before your first save, tell Git your name and email: githelp doctor"));
   const message = await ctx.ui.ask(t("Ne yaptın? Örnek: Giriş ekranını ekle", "What did you do? For example: Add the login screen"), { required: true });
-  ctx.ui.note(t(`Kayıt sepetine girecek ${selected.length} dosya: ${selected.map(file => file.path).join(', ')}`, `${selected.length} files will be staged: ${selected.map(file => file.path).join(', ')}`));
+  ctx.ui.note(t(`Commit’e eklenecek ${selected.length} dosya: ${selected.map(file => file.path).join(', ')}`, `${selected.length} files will be prepared for this commit: ${selected.map(file => file.path).join(', ')}`));
   const commands = [
     { program: 'git', args: ['--literal-pathspecs', 'add', '--', ...selected.map(file => file.path)] },
     { program: 'git', args: ['commit', '-m', message] },
@@ -133,6 +135,9 @@ async function push(ctx) {
   const remote = await chooseRemote(ctx, repo, { pushing: true });
   if (repo.files.length) ctx.ui.note(t("Kaydedilmemiş değişikliklerin var. Push yalnız commit’leri gönderir.", "You have unsaved file changes. Push only sends commits."));
   if (['main', 'master'].includes(branch)) ctx.ui.note(t("Ana dalı seçtin. Bu dal ekip arkadaşlarınla paylaştığın ortak çalışma olabilir.", "You chose the main branch. This may be the shared work your teammates rely on."));
+  const destination = await gitText(repo.root, ['remote', 'get-url', '--push', remote]);
+  ctx.ui.note(t(`Gönderilecek repo: ${destination}`, `Destination repository: ${destination}`));
+  ctx.ui.note(t(`Bilgisayarındaki dal: ${branch}. GitHub’da güncellenecek dal: ${branch}. “${remote}” yalnız bu adresin kısa adıdır.`, `Local branch: ${branch}. Destination branch: ${branch}. "${remote}" is just a short name for this address.`));
   if (await applyPlan(ctx, repo.root, `${branch} → ${remote}/${branch}`, [{ program: 'git', args: pushArgs(remote, branch) }])) {
     ctx.ui.success(t("Kayıtların gönderildi. Bir özellik dalındaysan pr ile inceleme isteği açabilirsin.", "Your commits were sent. On a feature branch, use pr to ask for a review."));
   }
@@ -145,11 +150,11 @@ async function pull(ctx) {
   await requireIdle(repo);
   if (!repo.hasCommit) throw new UserError(t("Bu klasörde henüz commit yok. Var olan bir projeyi almak için git clone kullanabilirsin.", "This folder has no commits yet. To download an existing project, use git clone."));
   teach(ctx.ui, 'pull');
-  ctx.ui.note(t(`Çalıştığın dal: ${repo.branch}. Aynı isimli uzak daldan kayıtlar alınacak.`, `Current branch: ${repo.branch}. Saves will come from the remote branch with the same name.`));
+  ctx.ui.note(t(`Çalıştığın dal: ${repo.branch}. Aynı isimli uzak daldan commit’ler alınacak.`, `Current branch: ${repo.branch}. Commits will come from the remote branch with the same name.`));
   const remote = await chooseRemote(ctx, repo);
   ctx.ui.note(t("Dallar ayrı ayrı ilerlemişse dururuz; kendiliğinden merge veya rebase yapılmaz.", "If the histories have moved apart, we stop. No automatic merge or rebase."));
   if (await applyPlan(ctx, repo.root, `${remote}/${repo.branch} → ${repo.branch}`, [{ program: 'git', args: pullArgs(remote, repo.branch) }])) {
-    ctx.ui.success(t("Yeni kayıtlar alındı. Çalışmaya devam edebilirsin.", "New saves received. You can keep working."));
+    ctx.ui.success(t("Dalın güncellendi. Yeni commit varsa dosyalarına uygulandı; çalışmaya devam edebilirsin.", "Your branch is up to date. Any new commits were applied to your files; you can keep working."));
   }
 }
 
@@ -157,9 +162,9 @@ async function branch(ctx) {
   const repo = await requireRepo(ctx);
   await requireIdle(repo);
   teach(ctx.ui, 'branch');
-  const action = await ctx.ui.choose(t("Çalışma masanı düzenle", "Organize your worktable"), [
+  const action = await ctx.ui.choose(t("Dal oluştur veya değiştir", "Create or switch a branch"), [
     { id: 'new', label: t("Yeni dal oluştur ve ona geç", "Create a new branch and switch to it"), description: t("Örnek: ozellik/karanlik-tema", "For example: feature/dark-theme") },
-    { id: 'switch', label: t("Var olan bir dala geç", "Switch to an existing branch"), description: t("Önce çalışma masanın temiz olması gerekir.", "Your worktable needs to be clean first.") },
+    { id: 'switch', label: t("Var olan bir dala geç", "Switch to an existing branch"), description: t("Önce değişen dosyalarını commit ile kaydetmelisin.", "Commit your changed files before switching.") },
   ], { defaultId: 'new' });
   if (!repo.hasCommit) throw new UserError(t("Yeni dal oluşturmadan önce ilk commit’ini al. İlk dalın adı genellikle main olur.", "Make your first commit before creating another branch. The first branch is usually called main."));
   let args;
@@ -182,13 +187,15 @@ async function branch(ctx) {
 async function init(ctx) {
   if (await repository(ctx.cwd)) throw new UserError(t("Bu klasör zaten bir Git projesinin içinde. githelp status ile görebilirsin.", "This folder is already inside a Git project. Check it with githelp status."));
   teach(ctx.ui, 'git');
-  ctx.ui.note(t(`Bu klasörün kayıt defteri açılacak: ${ctx.cwd}`, `A notebook will be started for this folder: ${ctx.cwd}`));
-  if (await applyPlan(ctx, ctx.cwd, t("İlk dalın main olsun", "Start with a branch called main"), [{ program: 'git', args: ['init', '--initial-branch=main'] }])) {
-    ctx.ui.success(t("Kayıt defteri hazır. Sıradaki adım: doktor, ardından commit.", "Your project notebook is ready. Next: doctor, then commit."));
+  ctx.ui.note(t(`Bu klasörde Git geçmişi başlatılacak: ${ctx.cwd}`, `Git history will be initialized in this folder: ${ctx.cwd}`));
+  const applied = await applyPlan(ctx, ctx.cwd, t("İlk dalın main olsun", "Start with a branch called main"), [{ program: 'git', args: ['init', '--initial-branch=main'] }]);
+  if (applied) {
+    ctx.ui.success(t("Git hazır. GitHub bağlantısı için kurulum seç. Yerel kayıt için önce doktor ile adını/e-postanı kontrol et, sonra commit kullan.", "Git is ready. Choose setup for GitHub. To save locally, check your name/email with doctor, then use commit."));
   }
+  return applied;
 }
 
-async function connect(ctx) {
+async function connect(ctx, { protocol = 'https' } = {}) {
   const repo = await requireRepo(ctx);
   teach(ctx.ui, 'remote');
   ctx.ui.note(t("Henüz GitHub repon yoksa https://github.com/new adresinde boş bir repo açabilir veya yayinla komutunu kullanabilirsin.", "If you have no GitHub repository yet, create an empty one at https://github.com/new or use publish."));
@@ -196,11 +203,14 @@ async function connect(ctx) {
   const target = githubRepository(url);
   const name = validateRemote(await ctx.ui.ask(t("Bu adresin kısa adı", "A short name for this address"), { fallback: 'origin' }));
   if (repo.remotes.includes(name)) throw new UserError(t(`${name} zaten kayıtlı. Mevcut bağlantı değiştirilmedi. Başka bir kısa ad seçebilirsin.`, `${name} is already registered. The existing address was not changed. Choose another short name.`));
-  const remoteUrl = target.url;
-  if (url.startsWith('git@')) ctx.ui.note(t('Aynı repoya HTTPS ile bağlanacağız. SSH anahtarı yerine tarayıcı girişi kullanmak için login seçebilirsin.', 'We will connect to the same repository over HTTPS. Choose login to sign in through your browser instead of using an SSH key.'));
-  if (await applyPlan(ctx, repo.root, `${name} → ${target.fullName}`, [{ program: 'git', args: ['remote', 'add', '--', name, remoteUrl] }])) {
-    ctx.ui.success(t('Adres bağlandı. Hesabını login ile bir kez bağlayabilir, ardından push ile gönderebilirsin.', 'Address connected. Connect your account once with login, then send your commits with push.'));
+  const remoteUrl = protocol === 'ssh' ? `git@github.com:${target.fullName}.git` : target.url;
+  if (protocol === 'https' && url.startsWith('git@')) ctx.ui.note(t('Aynı repoya HTTPS ile bağlanacağız. SSH anahtarı yerine tarayıcı girişi kullanmak için login seçebilirsin.', 'We will connect to the same repository over HTTPS. Choose login to sign in through your browser instead of using an SSH key.'));
+  ctx.ui.note(t('origin bu adres için yaygın kullanılan kısa addır; main ise bir dal adıdır. Birbirlerinin yerine geçmezler.', 'origin is a common short name for this address; main is a branch name. They serve different purposes.'));
+  const applied = await applyPlan(ctx, repo.root, `${name} → ${remoteUrl}`, [{ program: 'git', args: ['remote', 'add', '--', name, remoteUrl] }]);
+  if (applied) {
+    ctx.ui.success(t('Repo adresi kaydedildi. Hesaba giriş ve repo erişimi bu adımda test edilmedi. Giriş hazır değilse kurulum seç; hazırsa commit, ardından push kullan.', 'Repository address saved. Account sign-in and repository access were not tested here. Choose setup if sign-in is not ready; otherwise use commit, then push.'));
   }
+  return applied;
 }
 
 async function requireGh(ctx) {
@@ -303,13 +313,14 @@ export function help(ui) {
   Kaynaktan: node src/cli.mjs
   Projeye kurulduğunda: node .github/githelp/cli.mjs
 
-  status / durum       Neler değişti?
+  setup / kurulum      GitHub bağlantısını adım adım hazırla (önce en kolay yol)
+  status / durum       Değişen dosyaları göster
   commit / kaydet      Dosya seç, açıklama yaz, bilgisayarında kaydet
   push / gonder        Dal seç, kayıtları uzak repoya gönder
-  pull / al            Aynı dalın yeni kayıtlarını al (yalnız ff-only)
+  pull / al            Aynı dalın yeni commit’lerini al; dallar ayrıldıysa durur
   branch / dal         Dal oluştur veya değiştir
   pr                   GitHub’da taslak inceleme isteği aç (gh gerekli)
-  baslat               Bu klasörde Git’i başlat (main)
+  init / baslat        Bu klasörde Git’i başlat (main)
   bagla                Var olan GitHub repo adresini ekle
   login / giris        GitHub hesabını tarayıcıdan bağla; oturumu tekrar kullan
   yayinla              GitHub’da yeni repo oluştur (gh gerekli)
@@ -321,7 +332,7 @@ export function help(ui) {
   Komutsuz açıldığında menü gelir; menüde push da yazabilirsin.
   --dry-run: değişiklik yapan komutları yalnız gösterir; çalıştırmaz.
   Vazgeçmek için: seçimlerde 0 veya her yerde Ctrl+C.
-  Gerekenler: Node.js 22+, Git 2.28+. PR/repo açmak için GitHub CLI.
+  Gerekenler: Node.js 22+, Git 2.28+. Tarayıcı girişi ve PR/repo açmak için GitHub CLI.
   Bu paket henüz npm’de yayımlanmadı; yerel kullanım hazır.
 
   Dil: --lang tr veya --lang en. Ortam değişkeni: GITHELP_LANG.
@@ -330,13 +341,14 @@ export function help(ui) {
   From source: node src/cli.mjs
   Installed in a project: node .github/githelp/cli.mjs
 
-  status               What changed? Check your files and branch.
+  setup                Prepare GitHub access step by step (easiest method first).
+  status               Show changed files and your current branch.
   commit               Choose files, write a note, and save locally.
   push                 Choose a branch and send its commits to a remote.
-  pull                 Get new saves for your current branch (ff-only).
+  pull                 Get new commits for your current branch; stop if histories diverged.
   branch               Create a work branch or switch branches.
   pr                   Open a draft review request on GitHub (needs gh).
-  init                 Start a Git notebook in this folder, on main.
+  init                 Initialize Git in this folder, on main.
   connect              Add an existing GitHub repository address.
   login                Connect in your browser and reuse the saved session.
   publish              Create a repository on GitHub (needs gh).
@@ -348,7 +360,7 @@ export function help(ui) {
   With no command, a menu opens. You can type push in the menu too.
   --dry-run: preview commands that make changes without running them.
   To leave: choose 0, or press Ctrl+C at any time.
-  Requires Node.js 22+ and Git 2.28+. PR/repo creation needs GitHub CLI.
+  Requires Node.js 22+ and Git 2.28+. Browser sign-in and PR/repo creation need GitHub CLI.
   This package is not published to npm yet. Local use is ready.
 
   Language: --lang en or --lang tr. Environment variable: GITHELP_LANG.
@@ -370,23 +382,33 @@ export async function run(ctx, argv) {
   if (command === 'learn') return learn(ctx, positional[1]);
   if (command === 'install') return install(ctx, positional[1]);
   const actions = { status, commit, push, pull, branch, init, connect, login, publish, pr, doctor, learn,
+    setup: context => setup(context, { init, connect, login }),
     install: context => install(context), demo: context => demo(context.ui) };
   if (!command) {
     ctx.ui.title(`gitHelp ${VERSION}`);
     ctx.ui.note(t("Git’i ezberlemek zorunda değilsin. Ne yapmak istediğini seç.", "You do not have to memorize Git. Choose what you want to do."));
     if (ctx.dryRun) ctx.ui.note(t("Prova açık. Değişiklik yapan komutlar yalnız gösterilecek.", "Dry run is on. Commands that make changes will only be shown."));
+    let showSetupStatus = true;
     while (true) {
       const menu = getMenu();
-      const repo = await repository(ctx.cwd);
-      ctx.ui.note(repo ? t(`${basename(repo.root)} / ${repo.branch || 'detached HEAD'} / ${repo.files.length} değişen dosya`, `${basename(repo.root)} / ${repo.branch || 'detached HEAD'} / ${repo.files.length} changed files`) : t("Bu klasörde henüz Git kayıt defteri yok.", "This folder does not have a Git notebook yet."));
-      const options = repo ? menu : [
-        { id: 'init', label: t("Projemin kayıt defterini aç  / baslat", "Start my project notebook  / init") },
+      const connection = await inspectConnection(ctx);
+      const repo = connection.repo;
+      if (showSetupStatus) { showConnection(ctx.ui, connection); showSetupStatus = false; }
+      ctx.ui.note(repo ? t(`${basename(repo.root)} / ${repo.branch || 'detached HEAD'} / ${repo.files.length} değişen dosya`, `${basename(repo.root)} / ${repo.branch || 'detached HEAD'} / ${repo.files.length} changed files`) : t("Bu klasörde henüz Git başlatılmadı.", "Git has not been initialized in this folder yet."));
+      let options = repo ? menu : [
+        setupOption(),
+        { id: 'init', label: t("Bu klasörde Git’i başlat  / baslat", "Initialize Git in this folder  / init") },
         ...menu.filter(item => ['doctor', 'learn', 'install'].includes(item.id)),
         { id: 'demo', label: t("Bir örnek gör  / demo", "See an example  / demo") },
       ];
+      if (connection.needsSetup && repo) options = [setupOption(), ...options.filter(option => option.id !== 'setup')];
       const choices = options.map(option => ({ ...option, aliases: Object.keys(aliases).filter(key => aliases[key] === option.id) }));
-      command = await ctx.ui.choose(t("Bugün ne yapalım?", "What would you like to do?"), choices, { defaultId: repo ? 'status' : 'init' });
+      command = await ctx.ui.choose(t("Bugün ne yapalım?", "What would you like to do?"), choices, { defaultId: connection.needsSetup ? 'setup' : 'status' });
       await actions[command](ctx);
+      if (['setup', 'login', 'connect', 'init', 'publish'].includes(command)) {
+        delete ctx.connectionAccount;
+        showSetupStatus = true;
+      }
     }
   }
   const action = actions[command];

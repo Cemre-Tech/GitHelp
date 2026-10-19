@@ -90,13 +90,14 @@ export async function login(ctx, { run = execute, env = process.env, inspect = r
     changeProtocol = protocol.stdout.trim() === 'ssh';
     if (changeProtocol) commands.unshift({ program: 'gh', args: ['config', 'set', 'git_protocol', 'https', '--host', host] });
   }
-  ctx.ui.title(t('GitHub hesabını bir kez bağla', 'Connect your GitHub account once'));
+  ctx.ui.title(t('GitHub hesabına giriş yap', 'Sign in to your GitHub account'));
   ctx.ui.note(needsLogin
-    ? t('Tarayıcıda GitHub’a giriş yapıp gösterilen tek kullanımlık kodu onaylayacaksın. Elle token oluşturman gerekmez.', 'Sign in to GitHub in your browser and approve the one-time code shown. You do not need to create a token manually.')
-    : t('Geçerli GitHub oturumun bulundu; yeniden giriş yapmayacağız.', 'A valid GitHub session was found; we will reuse it.'));
-  ctx.ui.note(t('Hesap oturumunu GitHub CLI saklar. gitHelp yalnız bu projenin Git bağlantı ve kimlik yardımcısı ayarlarını düzenler. Push ayrı bir adımdır.', 'GitHub CLI stores the account session. gitHelp configures this project’s Git remotes and credential helper. Pushing is a separate step.'));
-  if (needsLogin || changeProtocol) ctx.ui.note(t('GitHub CLI için HTTPS tercihi bu kullanıcıda github.com hesaplarına uygulanır; yeni oluşturulan repolar da HTTPS ile bağlanır.', 'GitHub CLI’s HTTPS preference applies to this user’s github.com accounts, so newly created repositories also connect over HTTPS.'));
-  if (needsLogin) ctx.ui.note(t('Tarayıcı girişi GitHub CLI’ın kendi Git giriş ayarı için de soru sorabilir.', 'Browser sign-in may also ask about GitHub CLI’s own Git authentication setup.'));
+    ? t('GitHub CLI bir kod gösterecek. Tarayıcıda GitHub hesabına giriş yap, bu kodu yaz ve erişime izin ver. Token oluşturup buraya yapıştırman gerekmez.', 'GitHub CLI will show a code. Sign in to GitHub in your browser, enter that code and approve access. You do not need to create or paste a token here.')
+    : t('GitHub CLI’de geçerli bir hesabın zaten açık. Aynı hesabı kullanacağız; yeniden giriş gerekmez.', 'GitHub CLI already has a valid signed-in account. We will use that account; you do not need to sign in again.'));
+  ctx.ui.note(t('Bu adım hesabını hazırlar. Dosyalarını kaydetmez veya GitHub’a göndermez. Gönderilecek GitHub repo adresi ayrıca bu projeye eklenmiş olmalı.', 'This step prepares your account. It does not save your files or send them to GitHub. This project also needs the address of the GitHub repository you will send to.'));
+  ctx.ui.note(t('GitHub CLI giriş bilgini saklar. Bu projede Git, GitHub HTTPS işlemlerinde o hesabı kullanacak. Varsa desteklenen GitHub SSH adresleri aynı reponun HTTPS adresine çevrilecek.', 'GitHub CLI saves your sign-in. Git in this project will use that account for GitHub HTTPS operations. Supported GitHub SSH addresses, if any, will change to HTTPS for the same repository.'));
+  if (needsLogin || changeProtocol) ctx.ui.note(t('GitHub CLI’nin github.com için bağlantı tercihi HTTPS olacak. Bu tercih kullanıcı hesabında saklanır; bu kullanıcıyla daha sonra gh üzerinden oluşturulan repoları da etkiler.', 'GitHub CLI will prefer HTTPS for github.com. This preference is saved for your user account and also applies to repositories you create later with gh.'));
+  if (needsLogin) ctx.ui.note(t('GitHub CLI, Git işlemlerinde de bu hesabı kullanmak isteyip istemediğini sorabilir. Bu, push ve pull için hesabın kullanılmasını sağlar.', 'GitHub CLI may ask whether Git should use this account too. This lets Git use it for push and pull.'));
   ctx.ui.note(t('Çalışacak komutlar:', 'Commands to run:'));
   if (needsLogin) ctx.ui.write(`    ${commandText('gh', loginArgs)}`);
   commands.forEach(command => ctx.ui.write(`    ${commandText(command.program, command.args)}`));
@@ -105,13 +106,14 @@ export async function login(ctx, { run = execute, env = process.env, inspect = r
     return false;
   }
   if (!needsLogin && !commands.length) {
-    ctx.ui.success(t('GitHub bağlantın zaten hazır. Şimdi push kullanabilirsin.', 'Your GitHub connection is already ready. You can use push now.'));
+    ctx.ui.success(t('GitHub hesabın ve bu projenin HTTPS hesap ayarı hazır. Dosyalarını commit ile kaydet. Repo adresi yoksa connect ile ekle veya ilk commit’ten sonra publish ile repo oluştur. Sonra push ile gönder.', 'Your GitHub account and this project’s HTTPS account settings are ready. Save your files with commit. If a repository address is missing, add one with connect or create a repository with publish after your first commit. Then send your commits with push.'));
+    ctx.ui.note(t('Bu kontrol, belirli bir repoya erişim veya yazma iznin olduğunu doğrulamaz.', 'This check does not verify access or write permission to a particular repository.'));
     return true;
   }
   if (needsLogin && (!ctx.ui.input?.isTTY || !ctx.ui.output?.isTTY)) {
     throw new UserError(t('İlk tarayıcı girişini gerçek bir terminalde çalıştır: npm start -- login. Boruyla veya arka planda giriş başlatılmaz.', 'Run the first browser sign-in in an interactive terminal: npm start -- login. Login is not started through a pipe or in the background.'));
   }
-  if (!(await ctx.ui.confirm(t('Bu GitHub bağlantısını hazırlayalım mı?', 'Set up this GitHub connection?')))) {
+  if (!(await ctx.ui.confirm(t('Gösterilen giriş ve HTTPS ayarlarını uygulayalım mı?', 'Apply the sign-in and HTTPS settings shown?')))) {
     ctx.ui.note(t('Vazgeçildi. Tarayıcı açılmadı ve Git ayarları değiştirilmedi.', 'Cancelled. No browser was opened and no Git settings were changed.'));
     return false;
   }
@@ -129,6 +131,7 @@ export async function login(ctx, { run = execute, env = process.env, inspect = r
     if (verified.code !== 0) throw new UserError(t('GitHub oturumu doğrulanamadı. Projenin Git ayarları değiştirilmedi. login ile tekrar dene.', 'The GitHub session could not be verified. The project’s Git settings were not changed. Try login again.'));
   }
   for (const command of commands) await run(command.program, command.args, { cwd: repo.root });
-  ctx.ui.success(t('GitHub hesabın bağlandı. Geçerli oturum tekrar kullanılacak; kayıtlarını göndermek için push seç.', 'Your GitHub account is connected. The valid session will be reused; choose push to send your commits.'));
+  ctx.ui.success(t('GitHub hesabın hazır; sonraki işlemlerde kayıtlı giriş kullanılacak. Dosyalarını commit ile kaydet. Repo adresi yoksa connect ile ekle veya ilk commit’ten sonra publish ile repo oluştur. Sonra push ile gönder.', 'Your GitHub account is ready; later operations will reuse your saved sign-in. Save your files with commit. If a repository address is missing, add one with connect or create a repository with publish after your first commit. Then send your commits with push.'));
+  ctx.ui.note(t('Hesaba giriş yapmak, her repoya yazma izni vermez. Repo adresi ve erişim izni gönderim sırasında ayrıca kontrol edilir.', 'Signing in does not grant write access to every repository. The repository address and your access are checked separately when you send commits.'));
   return true;
 }

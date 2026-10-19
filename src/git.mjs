@@ -15,13 +15,13 @@ export class CommandError extends Error {
   }
 }
 
-export function execute(program, args, { cwd = process.cwd(), env = {}, allowFailure = false, interactive = false } = {}) {
+export function execute(program, args, { cwd = process.cwd(), env = {}, allowFailure = false, interactive = false, timeoutMs = 0 } = {}) {
   return new Promise((resolveResult, reject) => {
     const childEnv = { ...process.env, GIT_TERMINAL_PROMPT: '0', GH_PROMPT_DISABLED: '1', GH_PAGER: 'cat', ...env };
     if (interactive) delete childEnv.GH_PROMPT_DISABLED;
     const child = spawn(program, args, {
       cwd, shell: false, windowsHide: true, stdio: interactive ? 'inherit' : ['ignore', 'pipe', 'pipe'],
-      env: childEnv,
+      env: childEnv, timeout: timeoutMs,
     });
     const interrupt = () => child.kill('SIGINT');
     if (interactive) process.on('SIGINT', interrupt);
@@ -126,7 +126,7 @@ export function errorHint(error) {
   const message = error.message.toLowerCase();
   if (/publickey/.test(message)) return t('SSH anahtarı doğrulanamadı. githelp login ile tarayıcıdan giriş yapıp bu reponun bağlantısını HTTPS olarak ayarlayabilirsin.', 'Your SSH key could not be verified. Use githelp login to sign in through your browser and switch this repository to HTTPS.');
   if (/protected branch|gh006|gh013|repository rule/.test(message)) return t("Bu dal GitHub kurallarıyla korunuyor. Bir özellik dalı oluştur, onu push ile gönder ve pr ile inceleme isteği aç.", "GitHub rules protect this branch. Create a feature branch, push it, and use pr to ask for a review.");
-  if (/non-fast-forward|fetch first|rejected/.test(message)) return t("Uzakta sende olmayan kayıtlar olabilir. Önce pull dene. Dallar ayrıldıysa ekip arkadaşınla incele; force push kullanma.", "The remote may have saves you do not have. Try pull first. If histories have moved apart, review them with a teammate; do not force push.");
+  if (/non-fast-forward|fetch first|rejected/.test(message)) return t("GitHub’daki dalda sende olmayan commit’ler olabilir. Önce pull ile almayı dene. İki tarafta ayrı commit’ler varsa pull durur; birleştirme kararını birlikte inceleyin. Force push uzaktaki geçmişi silebilir.", "The remote branch may contain commits you do not have. Try pull first. If histories have moved apart, pull stops; review how to combine them with a teammate. Force push can overwrite remote history.");
   if (/authentication|permission denied|could not read username|403|401/.test(message)) return t('GitHub girişini githelp login ile bağla. Repo erişiminin de olduğundan emin ol. Oturum geçerliyse yeniden giriş gerekmez.', 'Connect your GitHub account with githelp login. Make sure you also have repository access. A valid session does not need another sign-in.');
   if (/identity unknown|unable to auto-detect/.test(message)) return t("Git seni tanımıyor. githelp doktor ile bu projeye adını ve e-posta adresini ekle.", "Git does not know your identity yet. Use githelp doctor to set a name and email for this project.");
   if (/not possible to fast-forward|divergent/.test(message)) return t("İki dal ayrı ayrı ilerlemiş. Otomatik birleştirme yapılmadı. Birlikte incelemek için ekip arkadaşından destek al.", "The two histories have moved apart. No automatic merge was made. Ask a teammate to review them with you.");

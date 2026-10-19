@@ -12,11 +12,80 @@ gitHelp terminalinde yanında oturur: ne yapmak istediğini sorar, sade Türkçe
 
 [English](README.en.md) · [Katkıda bulun](CONTRIBUTING.md) · [Nasıl çalışıyor?](docs/architecture.md) · [MIT lisansı](LICENSE)
 
-## Hemen dene
+## Başka bir projede nasıl kullanırım? (önerilen)
 
-Gerekenler: **Node.js 22+**, **Git 2.28+**. Tarayıcıyla GitHub girişi, yeni GitHub reposu veya PR açmak için ayrıca
-[GitHub CLI](https://cli.github.com) gerekir. Temel Git işlemleri `gh` olmadan da çalışır;
-push/pull için kendi Git erişiminin hazır olması gerekir. gitHelp’ın harici npm bağımlılığı yoktur.
+gitHelp’ı, üzerinde çalıştığın projenin içine kurabilirsin. Örneğin mevcut projenin adı
+`benim-projem` olsun. **Node.js 22+ ve Git 2.28+** kurulu olmalı; hedef projenin Node.js projesi olması gerekmez.
+Tarayıcıyla GitHub girişi için ayrıca [GitHub CLI](https://cli.github.com) kur.
+
+**1. Terminali mevcut projenin bir üst klasöründe aç ve gitHelp’ı indir.**
+
+```sh
+git clone https://github.com/Cemre-Tech/GitHelp.git
+cd GitHelp
+```
+
+Bu örnekte klasörler yan yana durur:
+
+```text
+projelerim/
+  GitHelp/         ← bu araç
+  benim-projem/    ← üzerinde çalıştığın mevcut proje
+```
+
+**2. GitHelp klasöründeyken aracı kendi projene kopyala.**
+
+```sh
+node src/cli.mjs install "../benim-projem" --lang tr
+```
+
+`benim-projem` yerine kendi klasörünün adını yaz. Hedef klasör önceden var olmalı.
+Araç hedefi gösterip onay ister; doğruysa `evet` yaz. Bu işlem çalıştırılabilir dosyaları
+**kendi projenin** `.github/githelp/` klasörüne kopyalar. `npm install` veya global kurulum gerekmez.
+
+Klasörler yan yana değilse hedefin tam yolunu tırnak içinde ver. Örneğin Windows’ta:
+
+```powershell
+node src/cli.mjs install "C:/Projeler/Benim Uygulamam" --lang tr
+```
+
+gitHelp’ı zaten indirdiysen tekrar klonlamana gerek yok. Bu kurulum komutunu indirdiğin kaynak
+klasöründe çalıştır.
+
+**3. Kendi projenin klasörüne geç ve çalıştır.**
+
+```sh
+cd "../benim-projem"
+node .github/githelp/cli.mjs --lang tr
+```
+
+Tam yol kullandıysan `cd` komutunda da aynı proje yolunu kullan. Bundan sonra terminali
+**kendi projenin kök klasöründe** açıp yalnız şu komutu çalıştırman yeter:
+
+```sh
+node .github/githelp/cli.mjs
+```
+
+Menüdeki `status`, `commit`, `push` ve `pull` işlemleri, terminalin açık olduğu **senin projen**
+üzerinde çalışır. GitHelp’ın kendi GitHub reposuna gönderim yapmaz; push hedefi senin projenin
+remote ayarlarından seçilir ve onaydan önce gösterilir. Mevcut projen zaten Git kullanıyorsa
+tekrar `init` çalıştırma. GitHub hesabı veya proje adresi hazır değilse ilk öneri bağlantı kurulumudur.
+
+İngilizce açmak için `node .github/githelp/cli.mjs --lang en` kullan.
+Doğrudan gönderim menüsü için `node .github/githelp/cli.mjs push` yazabilirsin.
+
+`.github/githelp/` dosyalarını kendi projende commit edip paylaşırsan ekip arkadaşların da aynı
+başlatma komutunu kullanabilir. Onlarda da Node.js ve Git kurulu olmalı; her kişi kendi GitHub hesabını kullanır.
+Kurulan kopya bağımsızdır; indirdiğin GitHelp kaynak klasörüne ihtiyaç duymaz.
+Kendi projende `npm start` çalıştırmak, o projenin kendi başlatma komutunu çalıştırır.
+gitHelp için yukarıdaki `node .github/githelp/cli.mjs` komutunu kullan.
+
+## GitHelp kaynak klasöründe dene
+
+Gerekenler: **Node.js 22+**, **Git 2.28+**. Tarayıcıyla GitHub girişi, terminalden yeni GitHub reposu
+veya PR açmak için ayrıca [GitHub CLI](https://cli.github.com) gerekir. GitHub sitesinde elle repo
+oluşturmak için `gh` gerekmez. Temel Git işlemleri `gh` olmadan da çalışır; push/pull için Git
+erişiminin hazır olması gerekir. gitHelp’ın harici npm bağımlılığı yoktur.
 
 Bu klasörde tek komutla aç:
 
@@ -30,9 +99,55 @@ npm start
 npm run demo
 ```
 
+## İlk açılışta GitHub bağlantısı
+
+gitHelp, GitHub hesabı ve proje adresi eksikse bağlantı kurmayı menünün ilk sırasında önerir.
+GitHub CLI oturumunun kontrolü tamamlanamazsa bunu da açıkça söyler; hesabını bağlı kabul etmez.
+İstersen bağlantıyı hazırlamadan yerel dosyalarını inceleyebilir veya commit oluşturabilirsin.
+
+Kendi projenin kök klasöründe bağlantı rehberini doğrudan da açabilirsin:
+
+```sh
+node .github/githelp/cli.mjs setup --lang tr
+```
+
+GitHelp kaynak klasöründe çalışıyorsan `npm start -- setup --lang tr` kullan.
+İsteğe bağlı kısa komut bağlıysa `githelp setup` veya `githelp kurulum` yaz.
+Rehber şu yolları sunar:
+
+1. **Tarayıcıyla giriş + HTTPS — önerilen, en kolay yol.** GitHub CLI kuruluysa bir kez GitHub hesabına
+   giriş yaparsın. Sonraki işlemlerde kayıtlı giriş kullanılır; her push için token oluşturmazsın.
+   `gh` yoksa rehber kurulum adresini gösterir; kurduktan sonra `setup` ile devam edersin.
+2. **Hazır HTTPS erişimini kullan.** Git Credential Manager gibi bir araçla hesabını zaten bağladıysan
+   bu yolu seçebilirsin. gitHelp mevcut giriş yöntemini değiştirmeden proje adresini eklemeni sağlar.
+3. **Mevcut SSH anahtarını kullan — ileri seviye.** GitHub’a eklediğin ve bu bilgisayarda çalışan bir SSH
+   anahtarın varsa SSH repo adresini kullanırsın. Rehber senin yerine yeni anahtar oluşturmaz.
+
+Sonra mevcut GitHub reposunun adresini seçersin. Repo henüz yoksa rehber
+[GitHub’da yeni repo oluşturma sayfasını](https://github.com/new) gösterir. **Boş repo oluştur:**
+README, `.gitignore` veya lisans ekleme kutularını işaretleme. Bu dosyaları mevcut projenle birlikte
+commit edip gönderebilirsin; böylece GitHub’da bağımsız bir başlangıç geçmişi oluşmaz.
+
+Üç ayrı adımı ayırt etmek yararlı:
+
+- **Hesap girişi:** GitHub seni tanır ve hesabının izinlerini kullanır.
+- **Repo adresi:** Bu klasörün hangi GitHub projesine gönderileceğini belirler. `origin`, bu adres için yaygın bir kısa addır.
+- **Commit ve push:** Commit, seçtiğin dosyaları bilgisayarında kaydeder; push, bu commit’leri seçtiğin GitHub reposuna gönderir.
+
+Bir repo adresinin ekli olması, internete ulaşabildiğini veya o repoya yazma iznin olduğunu kanıtlamaz.
+Rehber kendiliğinden commit veya push yapmaz; sonraki adımı açıkça gösterir.
+
 ## Türkçe veya İngilizce seç
 
-Menüler, öğretici açıklamalar, sorular, onaylar ve gitHelp hata mesajları iki dilde çalışır:
+Menüler, öğretici açıklamalar, sorular, onaylar ve gitHelp hata mesajları iki dilde çalışır.
+Aracı kurduğun kendi projenin kök klasöründe:
+
+```sh
+node .github/githelp/cli.mjs --lang tr
+node .github/githelp/cli.mjs --lang en
+```
+
+GitHelp kaynak klasöründe denemek için:
 
 ```sh
 npm start -- --lang tr
@@ -57,14 +172,15 @@ npm start
 > İlk sürüm kaynak koddan çalışmaya hazırdır. Paket henüz npm’de yayımlanmadı;
 > `npx githelp` şu anda bu projeye ait doğrulanmış bir kurulum yöntemi değildir.
 
-## GitHub’a tarayıcıyla bağlan
+## Hesabına tarayıcıyla giriş yap
 
-Her push için token üretmen veya yapıştırman gerekmez. GitHub CLI kuruluysa kaynak klasöründe:
+Her push için token üretmen veya yapıştırman gerekmez. GitHub CLI kuruluysa kendi projenin kök klasöründe:
 
 ```sh
-npm start -- login --lang tr
+node .github/githelp/cli.mjs login --lang tr
 ```
 
+GitHelp kaynak klasöründe `npm start -- login --lang tr` kullanabilirsin.
 Kısa komutu bağladıysan kendi projenin terminalinde `githelp login` kullanabilirsin.
 `giris` ve `giriş` aynı komutun Türkçe karşılıklarıdır.
 
@@ -79,8 +195,9 @@ Projedeki desteklenen GitHub SSH adresleri de önizlemede gösterilir. Onaylarsa
 `git@github.com:kullanici/proje.git`, aynı reponun `https://github.com/kullanici/proje.git` adresine çevrilir.
 Alma ve ayrı gönderim adresleri kendi repo hedefleri korunarak ele alınır. gitHelp, bu projedeki GitHub HTTPS
 işlemleri için GitHub CLI kimlik yardımcısını `.git/config` içinde ayarlar. Birden çok adres, başka yerden
-devralınmış ayar veya URL yönlendirmesi güvenle ele alınamıyorsa işlem durur. `login` commit veya push yapmaz;
-girişten sonra göndermek için ayrıca `push` seçersin. `Permission denied (publickey)` hatası için de bu yolu kullanabilirsin.
+devralınmış ayar veya URL yönlendirmesi güvenle ele alınamıyorsa işlem durur. `login` commit veya push yapmaz
+ve eksik repo adresini eklemez. Tüm bağlantı adımları için `setup` kullan. Dosyaların commit edilmiş ve GitHub
+repo adresin eklenmiş olduğunda `push` ile gönderirsin. `Permission denied (publickey)` hatası için de bu yolu kullanabilirsin.
 
 gitHelp kimlik bilgilerini `.github/githelp` içine kaydetmez. Oturumu GitHub CLI saklar: mümkünse işletim
 sisteminin kimlik deposunu kullanır, bu depo kullanılamıyorsa kullanıcı ayar dosyasında düz metne dönebilir.
@@ -90,11 +207,12 @@ değişiklikleri bu projeye aittir. Ayrıntılar: [resmî giriş belgesi](https:
 
 `GH_TOKEN` veya `GITHUB_TOKEN` ortam değişkeni tanımlıysa kayıtlı oturumdan önceliklidir.
 Kalıcı tarayıcı girişi için bu değişkenleri terminal oturumundan kaldırıp tekrar dene; değerlerini araca veya hata bildirimine yazma.
-Prova için `npm start -- login --dry-run --lang tr` kullan: tarayıcı açılmaz, ayar veya adres değiştirilmez.
+Prova için `node .github/githelp/cli.mjs login --dry-run --lang tr` kullan: tarayıcı açılmaz, ayar veya adres değiştirilmez.
 
 ## Günlük kullanım
 
-Komutsuz başlatıldığında bir menü açılır. Numara seçebilir veya `push` gibi bir komut yazabilirsin.
+Komutsuz başlatıldığında bir menü açılır. GitHub bağlantısında eksik adım varsa ilk seçenek bağlantı rehberidir.
+Numara seçebilir veya `push` gibi bir komut yazabilirsin.
 Her işlemden önce ne olacağını ve çalışacak Git komutunu görürsün. Onayda Enter’ın varsayılanı **hayır**dır.
 Bir işlem tamamlanınca menüye dönersin; çıkmak için `0` seçebilirsin.
 
@@ -126,13 +244,17 @@ branch → kodunu yaz → status → commit → push → pr
             arkadaşlarının kayıtları için pull
 ```
 
-## Her projede kısa komutla kullan
+## Alternatif: her projede `githelp` kısa komutunu kullan
 
-gitHelp klasöründe bir kez yerel komutu bağla:
+Yukarıdaki kopyalama yöntemi global kurulum gerektirmez. Her projenin terminalinde doğrudan
+`githelp` yazmak istersen, **GitHelp kaynak klasöründe** bir kez yerel komutu bağla:
 
 ```sh
 npm link
 ```
+
+Bu yöntem kaynak klasörüne bağlantı oluşturur; kısa komutu kullanırken GitHelp kaynak klasörünü
+taşımamalı veya silmemelisin. Kopyalanan `.github/githelp` ise bu bağlantıya ihtiyaç duymaz.
 
 Sonra **kendi projenin terminalinde**:
 
@@ -154,7 +276,8 @@ engelliyorsa `npm.cmd start` / `npm.cmd link` veya doğrudan `node src/cli.mjs` 
 
 ## Aracı projenin `.github` klasöründe tut
 
-Hedef projenin terminalinde:
+İlk bölümdeki kopyalama adımlarını izlediysen kurulum tamamdır.
+Alternatif olarak `npm link` ile kısa komutu bağladıysan hedef projenin terminalinde:
 
 ```sh
 githelp kur
@@ -167,6 +290,8 @@ node .github/githelp/cli.mjs
 ```
 
 Kurulan araçta da dil seçebilirsin: `node .github/githelp/cli.mjs --lang en`.
+İlk açılışta bağlantı eksikse aynı bağlantı rehberi önerilir; doğrudan açmak için
+`node .github/githelp/cli.mjs setup` kullanabilirsin.
 
 Örneğin dal seçerek push başlatmak için:
 
@@ -188,33 +313,34 @@ Bu bir terminal aracıdır; `.github` altında bulunması onu otomatik çalışa
 
 ## İlk kez GitHub’a göndermek
 
-Kendi projenin kök klasöründe sırayla:
+Aracı kurduğun kendi projenin kök klasöründe sırayla:
 
 ```sh
-githelp baslat
-githelp doktor
-githelp commit
-githelp login
-githelp yayinla
-githelp push
+node .github/githelp/cli.mjs setup
+node .github/githelp/cli.mjs doctor
+node .github/githelp/cli.mjs commit
+node .github/githelp/cli.mjs push
 ```
 
-- `baslat`: Henüz Git yoksa kayıt defterini `main` dalıyla açar.
+`setup`, Git henüz başlatılmadıysa ilk adımda bunun için onay ister. Git zaten hazırsa yeniden
+başlatılmaz. İsteğe bağlı kısa komutla aynı işlemleri `githelp setup`, `githelp commit` gibi açabilirsin.
+
+- `init` / `baslat`: Bu klasörde Git geçmişini `main` dalıyla başlatır.
 - `doktor`: Kurulumu kontrol eder; gerekirse yalnız bu projeye commit adı ve e-postası ekler.
+- `setup` / `kurulum`: Hesap giriş yöntemini seçtirir ve projenin GitHub repo adresini eklemene yardım eder.
 - `commit`: Dosya numaralarını ve bir kayıt açıklamasını sorar.
-- `login`: Kayıtlı GitHub oturumunu kullanır veya tarayıcıyla giriş yapar; projeyi HTTPS erişimine hazırlar.
-- `yayinla`: GitHub CLI oturumu ile repo oluşturur. Özel / herkese açık seçimini sorar; varsayılan özeldir.
 - `push`: Dalını ve uzak bağlantını seçtirip commit’lerini gönderir.
 
-GitHub’da repon zaten varsa `yayinla` yerine `bagla` kullan. HTTPS ve `git@github.com:...` biçimindeki
-SSH adresleri desteklenir. GitHub CLI kurulu değilse [GitHub’da boş repo aç](https://github.com/new),
-sonra `bagla` ve `push` ile devam et. Git erişiminin HTTPS veya SSH ile ayrıca hazır olması gerekir.
-GitHub CLI ile giriş yaptıysan `bagla` sonrasında `login` çalıştırarak bu proje için HTTPS erişimini hazırlayabilirsin.
+Tek adımı doğrudan yapmak istersen `login` hesaba giriş yapar, `bagla` mevcut bir GitHub repo adresini
+HTTPS olarak ekler. SSH erişimini korumak için `setup` içindeki SSH yolunu seç. GitHub CLI ile terminalden
+repo oluşturmak için önce bir commit hazırla, ardından `yayinla` kullan. Repo adı ve özel / herkese açık
+seçimini sorar; varsayılan özeldir. Son olarak `push` ile commit’lerini gönder.
 
 ## Komut sözlüğü
 
 | Komut | Türkçe karşılığı | Yaptığı iş |
 | --- | --- | --- |
+| `setup` | `kurulum` | GitHub hesap girişini ve proje adresini adım adım hazırlama |
 | `status` | `durum` | Değişen dosyalar, dal ve son bilinen uzak kayıt farkı |
 | `commit` | `kaydet` | Dosya seçimi → kayıt açıklaması → yerel commit |
 | `push` | `gonder` | Yerel dal seçimi → uzak bağlantı → aynı adlı dala gönderim |
@@ -222,7 +348,7 @@ GitHub CLI ile giriş yaptıysan `bagla` sonrasında `login` çalıştırarak bu
 | `branch` | `dal` | Yeni yerel dal oluşturma veya yerel dal değiştirme |
 | `pr` | — | GitHub’da mevcut dal için taslak pull request |
 | `baslat` | `init` | Bu klasörde Git başlatma |
-| `bagla` | `connect` | Var olan GitHub adresini yeni remote olarak ekleme |
+| `bagla` | `connect` | Var olan GitHub adresini HTTPS remote olarak ekleme |
 | `login` | `giris` | Kayıtlı oturumu kullanma veya tarayıcıyla GitHub girişi ve proje için HTTPS kurulumu |
 | `yayinla` | `publish` | GitHub’da özel veya herkese açık repo oluşturma |
 | `doktor` | `doctor` | Araçlar, kimlik ve bağlantı kontrolü |
@@ -236,10 +362,10 @@ Kaynak klasöründe doğrudan kullanım: `node src/cli.mjs push` veya `npm start
 ## Önce prova yap
 
 ```sh
-githelp push --dry-run
-githelp commit --dry-run
-githelp kur --dry-run
-githelp login --dry-run
+node .github/githelp/cli.mjs push --dry-run
+node .github/githelp/cli.mjs commit --dry-run
+node .github/githelp/cli.mjs login --dry-run
+node .github/githelp/cli.mjs setup --dry-run
 ```
 
 `--dry-run` dosya değiştiren veya uzak servis üzerinde işlem yapan komutları **çalıştırmaz**;

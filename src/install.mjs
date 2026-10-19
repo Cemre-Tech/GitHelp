@@ -31,5 +31,6 @@ export async function install(ctx, target = ctx.cwd) {
   await copyFile(license, join(destination, 'LICENSE'));
   ctx.ui.success(t("Kuruldu. Projenin kök klasöründe tek komut:", "Installed. From your project root, run:"));
   ctx.ui.write('    node .github/githelp/cli.mjs');
+  ctx.ui.note(t('İlk açılış bağlantı durumunu gösterir. Eksikse ilk öneri kurulum olur: tarayıcıyla giriş + HTTPS en kolay yoldur.', 'The first startup shows connection status. If setup is missing, its first recommendation is setup: browser sign-in + HTTPS is the easiest method.'));
   ctx.ui.note(t("Bu dosyaları commit edersen ekip arkadaşların da aynı komutu kullanabilir.", "Commit these files so your teammates can use the same command."));
 }

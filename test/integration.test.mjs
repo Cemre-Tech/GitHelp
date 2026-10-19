@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { mkdtemp, mkdir, writeFile, readFile, rm, lstat, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, resolve, sep, basename } from 'node:path';
+import { join, resolve, sep, basename, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { login } from '../src/auth.mjs';
 import { setLanguage } from '../src/i18n.mjs';
@@ -25,7 +25,8 @@ function command(program, args, cwd, input = '', extraEnv = {}) {
   return new Promise((resolveResult, reject) => {
     const env = { ...process.env, GIT_CONFIG_GLOBAL: isolatedConfig, GIT_CONFIG_NOSYSTEM: '1',
       GIT_TERMINAL_PROMPT: '0', GIT_AUTHOR_NAME: 'Test User', GIT_AUTHOR_EMAIL: 'test@example.invalid',
-      GIT_COMMITTER_NAME: 'Test User', GIT_COMMITTER_EMAIL: 'test@example.invalid', NO_COLOR: '1', GITHELP_LANG: 'tr', ...extraEnv };
+      GIT_COMMITTER_NAME: 'Test User', GIT_COMMITTER_EMAIL: 'test@example.invalid', NO_COLOR: '1', GITHELP_LANG: 'tr',
+      GH_CONFIG_DIR: dirname(isolatedConfig), GH_TOKEN: '', GITHUB_TOKEN: '', ...extraEnv };
     for (const key of ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_CONFIG_COUNT', 'GIT_CONFIG_PARAMETERS']) delete env[key];
     const child = spawn(program, args, { cwd, env, windowsHide: true, shell: false });
     let stdout = '';
@@ -314,7 +315,7 @@ test('menu remains open for multiple commands and accepts Turkish aliases', asyn
   const root = await repo(t);
   const result = await run(root, [], 'durum\nstatus\n0\n');
   assert.equal(result.code, 0, result.stdout);
-  assert.equal(result.stdout.match(/Çalışma masan temiz/g).length, 2);
+  assert.equal(result.stdout.match(/Commit edilmemiş dosya değişikliği yok/g).length, 2);
 });
 
 test('first commit, staged rename and tracked deletion are supported', async t => {
@@ -349,7 +350,9 @@ test('English and Turkish menus use the selected language throughout', async t =
   const english = await run(root, ['--lang', 'en'], '0\n');
   assert.equal(english.code, 0, english.stdout);
   assert.match(english.stdout, /gitHelp 0\.2\.0/);
-  assert.match(english.stdout, /Start my project notebook/);
+  assert.match(english.stdout, /Initialize Git in this folder/);
+  assert.match(english.stdout, /1\. Set up my GitHub connection.*recommended/);
+  assert.match(english.stdout, /Number or command \[setup\]/);
   assert.match(english.stdout, /What would you like to do/);
   assert.match(english.stdout, /Number or command/);
   assert.match(english.stdout, /Cancelled/);
@@ -358,6 +361,47 @@ test('English and Turkish menus use the selected language throughout', async t =
   assert.equal(turkish.code, 0, turkish.stdout);
   assert.match(turkish.stdout, /Bugün ne yapalım/);
   assert.match(turkish.stdout, /Numara veya komut/);
+});
+
+test('a Git project without a GitHub address recommends setup before local commands in both languages', async t => {
+  const root = await repo(t);
+  const before = await readFile(join(root, '.git', 'config'), 'utf8');
+  for (const language of ['tr', 'en']) {
+    const result = await run(root, ['--lang', language], '0\n');
+    assert.equal(result.code, 0, result.stdout);
+    assert.match(result.stdout, language === 'tr'
+      ? /1\. GitHub bağlantısını hazırla.*önerilen/ : /1\. Set up my GitHub connection.*recommended/);
+    assert.match(result.stdout, /\[setup\]/);
+  }
+  assert.equal(await readFile(join(root, '.git', 'config'), 'utf8'), before);
+});
+
+test('setup stops after declined or dry-run Git initialization', async t => {
+  const root = await workspace(t);
+  for (const dryRun of [false, true]) {
+    const result = await run(root, ['setup', '--lang', 'en', ...(dryRun ? ['--dry-run'] : [])], 'https\nno\n');
+    assert.equal(result.code, 0, result.stdout);
+    assert.match(result.stdout, /git init --initial-branch=main/);
+    assert.doesNotMatch(result.stdout, /Your GitHub repository address/);
+    assert.equal(await lstat(join(root, '.git')).then(() => true, () => false), false);
+  }
+});
+
+test('setup adds an address through existing HTTPS or SSH without sign-in, commit, or push', async t => {
+  for (const protocol of ['https', 'ssh']) {
+    const root = await repo(t);
+    const before = await git(root, 'rev-parse', 'HEAD');
+    const input = [protocol, ...(protocol === 'ssh' ? ['yes'] : []), 'existing',
+      'https://github.com/learner/project.git', 'origin', 'yes', ''].join('\n');
+    const result = await run(root, ['setup', '--lang', 'en'], input);
+    assert.equal(result.code, 0, result.stdout);
+    assert.equal(await git(root, 'remote', 'get-url', 'origin'), protocol === 'ssh'
+      ? 'git@github.com:learner/project.git' : 'https://github.com/learner/project.git');
+    assert.match(result.stdout, /Repository access has not been tested/);
+    assert.doesNotMatch(result.stdout, /gh auth login|Your commits were sent/);
+    assert.equal(await git(root, 'rev-parse', 'HEAD'), before);
+    assert.equal(await git(root, 'status', '--porcelain'), '');
+  }
 });
 
 test('locale detection, GITHELP_LANG, and command-line overrides work in real processes', async t => {
@@ -378,7 +422,7 @@ test('English commit prompts, explanations and confirmation save the selected fi
   await writeFile(join(root, 'new file.txt'), 'new work');
   const result = await run(root, ['commit', '--lang', 'en'], 'all\nAdd new work\nyes\n');
   assert.equal(result.code, 0, result.stdout);
-  assert.match(result.stdout, /saving your progress in a game/);
+  assert.match(result.stdout, /save changes on your computer/);
   assert.match(result.stdout, /Which files/);
   assert.match(result.stdout, /Shall we do this\? \(yes\/no\) \[no\]/);
   assert.match(result.stdout, /Saved locally/);
@@ -390,9 +434,11 @@ test('English push explains branch and remote choices before sending', async t =
   const { root, remote } = await localRemote(t);
   const result = await run(root, ['--lang=en', 'push'], 'main\norigin\nyes\n');
   assert.equal(result.code, 0, result.stdout);
-  assert.match(result.stdout, /Push = send your saves/);
+  assert.match(result.stdout, /Push = send commits to a chosen repository and branch/);
   assert.match(result.stdout, /Which branch should we send/);
   assert.match(result.stdout, /Which remote repository should we use/);
+  assert.match(result.stdout, /Destination repository:/);
+  assert.match(result.stdout, /Local branch: main\. Destination branch: main/);
   assert.match(result.stdout, /Your commits were sent/);
   assert.doesNotMatch(result.stdout, /[çğıöşüÇĞİÖŞÜ]/);
   assert.equal(await git(remote, 'rev-parse', 'refs/heads/main'), await git(root, 'rev-parse', 'HEAD'));
@@ -420,13 +466,16 @@ test('portable gitHelp installation includes both languages', async t => {
   assert.match(result.stdout, /Installed/);
   assert.doesNotMatch(result.stdout, /[çğıöşüÇĞİÖŞÜ]/);
   const entry = join(root, '.github', 'githelp', 'cli.mjs');
+  const menu = await run(root, ['--lang', 'en'], '0\n', entry);
+  assert.equal(menu.code, 0, menu.stdout);
+  assert.match(menu.stdout, /1\. Set up my GitHub connection.*recommended/);
   const english = await run(root, ['learn', 'commit', '--lang', 'en'], '', entry);
   assert.equal(english.code, 0, english.stdout);
-  assert.match(english.stdout, /saving your progress in a game/);
+  assert.match(english.stdout, /save changes on your computer/);
   assert.doesNotMatch(english.stdout, /[çğıöşüÇĞİÖŞÜ]/);
   const turkish = await run(root, ['learn', 'branch', '--lang', 'tr'], '', entry);
   assert.equal(turkish.code, 0, turkish.stdout);
-  assert.match(turkish.stdout, /ayrı bir çalışma masası/);
+  assert.match(turkish.stdout, /çalışman için ayrı bir dal oluştur/);
 });
 
 test('English demo and invalid language options leave no project files', async t => {

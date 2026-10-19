@@ -24,6 +24,7 @@ cli.mjs → UI + argümanlar → app.mjs / iş akışı
 | `lessons.mjs` | Öğretici açıklamalar ve mutasyonsuz demo |
 | `i18n.mjs` | TR/EN dil seçimi, locale algılama ve çift dilde metinler |
 | `auth.mjs` | Tarayıcı girişi, kayıtlı oturumun kullanılması ve proje için HTTPS bağlantı planı |
+| `onboarding.mjs` | Başlangıç bağlantı incelemesi ve bağlantı rehberinin yöntemleri |
 
 Her CLI çalıştırması tek bir dil kullanır. `--lang tr|en`, `GITHELP_LANG` ortam değişkeninden önceliklidir.
 Tercih verilmezse sistem locale bilgisi kullanılır; desteklenmeyen diller İngilizceye düşer. Menü ve ders
@@ -49,6 +50,26 @@ remote’un aynı isimli ref’ini `--ff-only --no-rebase` ile alır. Geçmiş a
 olabilir ama çalışma dalı birleştirilmez veya rebase edilmez.
 
 ## GitHub sınırı
+
+### İlk açılış ve bağlantı rehberi
+
+Komutsuz açılışta yerel GitHub repo adresleri ve GitHub CLI oturumu incelenir. Oturum kontrolünün
+bekleme süresi sınırlıdır; sonuç aynı menü oturumunda tekrar kullanılır. GitHub hesabı veya proje
+adresi eksikse ya da oturum doğrulanamıyorsa `setup` / `kurulum` ilk seçenek olarak önerilir.
+Yerel `status`, `commit` ve diğer komutlara giriş engellenmez. Başlangıç incelemesi tarayıcı açmaz,
+Git ayarı yazmaz, commit veya push yapmaz.
+
+Rehberin ilk yöntemi tarayıcıyla giriş ve HTTPS’tir. Diğer yöntemler hazır HTTPS erişimi ile mevcut
+SSH anahtarıdır. Bu yöntemlerde kullanıcı kendi Git kimlik doğrulamasını kullanabilir; `gh` oturumu
+tek geçerli erişim yolu sayılmaz. Yeni repo isteyen kullanıcı GitHub sitesinde boş repo oluşturmaya
+yönlendirilir. README, `.gitignore` ve lisansla ayrı bir ilk commit oluşturmaması açıklanır; repo
+adresini eklemek için ayrıca önizleme ve onay gerekir.
+
+Hesap girişi, repo adresi ve gerçek erişim üç ayrı durumdur. Kayıtlı bir adres bağlantının çalıştığını
+kanıtlamaz; GitHub CLI oturumunun geçerli olması da belirli bir repoya yazma yetkisi vermez. Hazır
+HTTPS veya SSH yöntemleri erişimin doğrulandığı şeklinde sunulmaz. Rehber commit veya push başlatmaz.
+
+### Hesap girişi ve işlemler
 
 Git kimlik doğrulaması ve GitHub CLI oturumu farklı şeylerdir. CLI oturum kontrolünün token veya
 hesap ayrıntıları yazdırılmaz. Repo oluşturma ve PR komutları bütün gerekli seçimlerle açıkça
@@ -90,6 +111,23 @@ Entegrasyon testleri gerçek CLI process’lerini geçici repolarda çalıştır
 repolardır. Global Git ayarları izole edilir. GitHub hesabı üzerinde canlı repo/PR oluşturulmaz.
 Tarayıcı girişi, oturumun yeniden kullanımı, iptal ve kimlik yardımcısı planı gerçek hesap yerine
 sahte komut sonuçlarıyla test edilir.
+
+## Startup and connection setup (English)
+
+On a menu launch, gitHelp reads the project's GitHub addresses and checks the active GitHub CLI account
+with a bounded wait. The result is reused during that menu session. A missing address, missing account,
+or unverified account makes `setup` the first recommendation. Local Git commands remain available.
+Inspection does not open a browser or change Git settings, commits, or remote repositories.
+
+The guide recommends browser sign-in with HTTPS first, then offers existing HTTPS access and an existing
+SSH key. Existing Git access does not require a GitHub CLI session. A new repository can be created empty
+on GitHub's website, avoiding an unrelated initialization commit. Adding its address still requires a
+command preview and confirmation. Setup does not commit or push automatically.
+
+Account sign-in, a configured repository address, and actual access are distinct. A valid CLI session
+does not establish write access to a particular repository, and a configured remote does not prove
+that the network is reachable. User-facing results describe the checks performed without claiming
+that configured HTTPS or SSH credentials have been verified.
 
 Resmî davranış kaynakları: [Git push](https://git-scm.com/docs/git-push),
 [Git pull](https://git-scm.com/docs/git-pull), [GitHub CLI PR create](https://cli.github.com/manual/gh_pr_create),
